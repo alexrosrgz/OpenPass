@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OpenPass
+
+Check visa requirements, compare passports, and explore where your passport can take you. Free, open, and beautifully designed.
+
+## Features
+
+- **Passport Lookup** — Select your passport and see every destination color-coded by visa requirement on an interactive world map
+- **Destination Lookup** — Pick a country and see which passports can enter without a visa
+- **Compare** — Side-by-side passport comparison with score differences
+- **Ranking** — Full leaderboard of 199 passports sorted by mobility score
+
+## Tech Stack
+
+- Next.js (App Router)
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+- shadcn/ui
+- react19-simple-maps
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Fetch and generate visa requirement data
+npx tsx scripts/ingest.ts
+
+# Start the dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Data
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Visa requirement data is sourced from [imorte/passport-index-data](https://github.com/imorte/passport-index-data) (MIT licensed). The ingestion script fetches the upstream CSV and transforms it into JSON stored in `/data`.
 
-## Learn More
+To refresh the data, re-run the ingestion script:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npx tsx scripts/ingest.ts
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+scripts/ingest.ts              # Data ingestion script
+data/                          # Generated JSON datasets
+src/
+  app/                         # Next.js pages (App Router)
+    passport/[code]/page.tsx   # Passport detail + world map
+    destination/[code]/page.tsx # Destination detail
+    compare/page.tsx           # Side-by-side comparison
+    ranking/page.tsx           # Leaderboard
+  lib/                         # Types, data access, constants
+  components/                  # UI components
+```
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
