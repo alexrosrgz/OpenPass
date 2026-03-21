@@ -8,6 +8,7 @@ import {
 } from "@vnedyalk0v/react19-simple-maps"
 import { motion, AnimatePresence } from "framer-motion"
 import { NUMERIC_TO_ISO3 } from "@/lib/geo"
+import { MapControls } from "./MapControls"
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const geoData: any = require("world-atlas/countries-110m.json")
 
@@ -49,7 +50,7 @@ const RankingMapInner = memo(function RankingMapInner({
   const MAX_ZOOM = 8
 
   const clampPan = useCallback((x: number, y: number, z: number) => {
-    const basePanX = 120
+    const basePanX = 250
     const maxPanX = basePanX + (500 * (z - 1)) / z
     const maxPanY = (250 * (z - 1)) / z
     return {
@@ -97,6 +98,18 @@ const RankingMapInner = memo(function RankingMapInner({
     setDragging(false)
   }, [])
 
+  const handleZoomIn = useCallback(() => {
+    setZoom((z) => Math.min(MAX_ZOOM, z * 1.3))
+  }, [])
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((z) => {
+      const newZ = Math.max(MIN_ZOOM, z / 1.3)
+      setPan((p) => clampPan(p.x, p.y, newZ))
+      return newZ
+    })
+  }, [clampPan])
+
   const passportMap = new Map<string, { rank: number; score: number; name: string }>()
   for (const p of passports) {
     passportMap.set(p.code, { rank: p.rank, score: p.score, name: p.name })
@@ -122,7 +135,7 @@ const RankingMapInner = memo(function RankingMapInner({
         className="w-full h-full"
         style={{ backgroundColor: "transparent" }}
       >
-        <g transform={`translate(${500 + pan.x * zoom}, ${250 + pan.y * zoom}) scale(${zoom}) translate(-500, -250)`}>
+        <g transform={`translate(${500 + pan.x * zoom}, ${280 + pan.y * zoom}) scale(${zoom}) translate(-500, -250)`}>
         <Geographies geography={geoData}>
           {({ geographies }) =>
             geographies.map((geo) => {
@@ -203,6 +216,7 @@ const RankingMapInner = memo(function RankingMapInner({
         )}
       </AnimatePresence>
 
+      <MapControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
     </div>
   )
 })

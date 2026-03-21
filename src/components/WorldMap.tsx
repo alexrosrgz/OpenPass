@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import type { VisaRequirement } from "@/lib/types"
 import { REQUIREMENT_CONFIG } from "@/lib/constants"
 import { NUMERIC_TO_ISO3 } from "@/lib/geo"
+import { MapControls } from "./MapControls"
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const geoData: any = require("world-atlas/countries-110m.json")
 
@@ -17,12 +18,16 @@ interface WorldMapProps {
   requirements: VisaRequirement[]
   passportCode: string
   countries: Record<string, { name: string; iso3: string }>
+  showHint?: boolean
+  showControls?: boolean
 }
 
 const WorldMapInner = memo(function WorldMapInner({
   requirements,
   passportCode,
   countries,
+  showHint = true,
+  showControls = true,
 }: WorldMapProps) {
   const [tooltip, setTooltip] = useState<{
     name: string
@@ -44,7 +49,7 @@ const WorldMapInner = memo(function WorldMapInner({
   const clampPan = useCallback((x: number, y: number, z: number) => {
     const basePanX = 120
     const maxPanX = basePanX + (500 * (z - 1)) / z
-    const maxPanY = (200 * (z - 1)) / z
+    const maxPanY = (250 * (z - 1)) / z
     return {
       x: Math.min(maxPanX, Math.max(-maxPanX, x)),
       y: Math.min(maxPanY, Math.max(-maxPanY, y)),
@@ -90,6 +95,18 @@ const WorldMapInner = memo(function WorldMapInner({
     setDragging(false)
   }, [])
 
+  const handleZoomIn = useCallback(() => {
+    setZoom((z) => Math.min(MAX_ZOOM, z * 1.3))
+  }, [])
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((z) => {
+      const newZ = Math.max(MIN_ZOOM, z / 1.3)
+      setPan((p) => clampPan(p.x, p.y, newZ))
+      return newZ
+    })
+  }, [clampPan])
+
   // Build lookup: ISO3 → requirement
   const reqMap = new Map<string, VisaRequirement>()
   for (const r of requirements) {
@@ -116,15 +133,14 @@ const WorldMapInner = memo(function WorldMapInner({
       <ComposableMap
         projection="geoNaturalEarth1"
         projectionConfig={{
-          scale: 210,
-          center: [0, 20],
+          scale: 170,
         }}
         width={1000}
-        height={450}
+        height={500}
         className="w-full h-full"
         style={{ backgroundColor: "transparent" }}
       >
-        <g transform={`translate(${500 + pan.x * zoom}, ${200 + pan.y * zoom}) scale(${zoom}) translate(-500, -200)`}>
+        <g transform={`translate(${500 + pan.x * zoom}, ${258 + pan.y * zoom}) scale(${zoom}) translate(-500, -250)`}>
         <Geographies geography={geoData}>
           {({ geographies }) =>
             geographies.map((geo) => {
@@ -206,6 +222,8 @@ const WorldMapInner = memo(function WorldMapInner({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showControls && <MapControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} showHint={showHint} />}
     </div>
   )
 })

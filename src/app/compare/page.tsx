@@ -12,8 +12,8 @@ export default function ComparePage() {
   const countries = getAllCountries()
 
   return (
-    <div className="min-h-screen pt-24">
-      <div className="mx-auto max-w-7xl px-6 py-12">
+    <div className="min-h-screen pt-20">
+      <div className="mx-auto max-w-7xl px-6 py-6">
         <div className="mt-0">
           <Suspense fallback={<div className="text-neutral-500">Loading...</div>}>
             <CompareClient countries={countries} />

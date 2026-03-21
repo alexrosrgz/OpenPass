@@ -86,16 +86,23 @@ export function CompareClient({ countries }: CompareClientProps) {
       <div className="grid gap-6 md:grid-cols-2">
         <div>
           {countryA ? (
-            <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-5 py-3">
-              <CountryFlag iso2={countryA.iso2} name={countryA.name} size={56} />
+            <div className="flex items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-6 py-5">
+              <CountryFlag iso2={countryA.iso2} name={countryA.name} size={72} />
               <span className="flex-1 font-medium">{countryA.name}</span>
+              {data && (
+                <div className="flex items-center gap-3 text-sm">
+                  <ScoreTooltip><span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Score</span></ScoreTooltip>
+                  <span className="text-lg font-bold text-emerald-600">{data.summaryA.score}</span>
+                  <span className="text-neutral-400">#{data.summaryA.rank}</span>
+                </div>
+              )}
               <button
                 onClick={() => {
                   const params = new URLSearchParams(searchParams.toString())
                   params.delete("a")
                   router.push(`/compare?${params.toString()}`)
                 }}
-                className="text-neutral-600 hover:text-neutral-900"
+                className="ml-2 text-neutral-400 hover:text-neutral-900"
               >
                 ×
               </button>
@@ -115,16 +122,23 @@ export function CompareClient({ countries }: CompareClientProps) {
 
         <div>
           {countryB ? (
-            <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-5 py-3">
-              <CountryFlag iso2={countryB.iso2} name={countryB.name} size={56} />
+            <div className="flex items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-6 py-5">
+              <CountryFlag iso2={countryB.iso2} name={countryB.name} size={72} />
               <span className="flex-1 font-medium">{countryB.name}</span>
+              {data && (
+                <div className="flex items-center gap-3 text-sm">
+                  <ScoreTooltip><span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Score</span></ScoreTooltip>
+                  <span className="text-lg font-bold text-emerald-600">{data.summaryB.score}</span>
+                  <span className="text-neutral-400">#{data.summaryB.rank}</span>
+                </div>
+              )}
               <button
                 onClick={() => {
                   const params = new URLSearchParams(searchParams.toString())
                   params.delete("b")
                   router.push(`/compare?${params.toString()}`)
                 }}
-                className="text-neutral-600 hover:text-neutral-900"
+                className="ml-2 text-neutral-400 hover:text-neutral-900"
               >
                 ×
               </button>
@@ -153,36 +167,10 @@ export function CompareClient({ countries }: CompareClientProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="mt-12"
+          className="mt-6"
         >
-          {/* Summary */}
-          <div className="mb-8 grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-6 text-center">
-              <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                <ScoreTooltip>Score</ScoreTooltip>
-              </div>
-              <div className="text-3xl font-bold text-emerald-600">
-                {data.summaryA.score}
-              </div>
-              <div className="mt-1 text-sm text-neutral-700">
-                #{data.summaryA.rank} globally
-              </div>
-            </div>
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-6 text-center">
-              <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                <ScoreTooltip>Score</ScoreTooltip>
-              </div>
-              <div className="text-3xl font-bold text-emerald-600">
-                {data.summaryB.score}
-              </div>
-              <div className="mt-1 text-sm text-neutral-700">
-                #{data.summaryB.rank} globally
-              </div>
-            </div>
-          </div>
-
           {data.summaryA.score !== data.summaryB.score && (
-            <p className="mb-8 text-center text-neutral-600">
+            <p className="mb-6 text-center text-neutral-600">
               <span className="font-semibold">
                 {data.summaryA.score > data.summaryB.score
                   ? data.summaryA.name
@@ -197,32 +185,28 @@ export function CompareClient({ countries }: CompareClientProps) {
           )}
 
           {/* Maps */}
-          <div className="mb-8 grid gap-4 md:grid-cols-2">
+          <div className="mb-8 grid gap-6 md:grid-cols-2">
             <div>
-              <p className="mb-2 text-sm font-medium text-neutral-700">
-                {countryA?.name || codeA}
-              </p>
-              <div className="overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50">
+              <div className="relative overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50">
                 <WorldMap
                   requirements={data.comparison
                     .filter((r) => r.requirementA)
                     .map((r) => r.requirementA!)}
                   passportCode={codeA}
                   countries={data.countriesMap}
+                  showHint={false}
                 />
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium text-neutral-700">
-                {countryB?.name || codeB}
-              </p>
-              <div className="overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50">
+              <div className="relative overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50">
                 <WorldMap
                   requirements={data.comparison
                     .filter((r) => r.requirementB)
                     .map((r) => r.requirementB!)}
                   passportCode={codeB}
                   countries={data.countriesMap}
+                  showHint={false}
                 />
               </div>
             </div>
