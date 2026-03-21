@@ -6,15 +6,18 @@ import type { RequirementType } from "@/lib/types"
 import { REQUIREMENT_CONFIG, REQUIREMENT_ORDER } from "@/lib/constants"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CountryFlag } from "./CountryFlag"
+import { WorldMap } from "./WorldMap"
 
 interface RequirementGridProps {
   requirements: VisaRequirement[]
   countries: Record<string, Country>
+  passportCode: string
 }
 
 export function RequirementGrid({
   requirements,
   countries,
+  passportCode,
 }: RequirementGridProps) {
   const grouped = new Map<RequirementType, VisaRequirement[]>()
   for (const type of REQUIREMENT_ORDER) {
@@ -32,76 +35,103 @@ export function RequirementGrid({
 
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
-      <TabsList className="mb-6 flex h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
-        {REQUIREMENT_ORDER.map((type) => {
-          const count = grouped.get(type)?.length || 0
-          if (count === 0) return null
-          const config = REQUIREMENT_CONFIG[type]
-          return (
-            <TabsTrigger
-              key={type}
-              value={type}
-              className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-600 transition-all data-[state=active]:border-neutral-300 data-[state=active]:bg-neutral-900 data-[state=active]:text-white"
-            >
-              {config.label}
-              <span className="ml-2 rounded-full bg-neutral-200 px-2 py-0.5 text-xs data-[state=active]:bg-white/20">
-                {count}
-              </span>
-            </TabsTrigger>
-          )
-        })}
-      </TabsList>
+      {/* Tabs row */}
+      <div className="mb-4 flex items-center gap-4">
+        <h2 className="text-2xl font-bold">Destinations</h2>
+        <TabsList className="flex h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
+          {REQUIREMENT_ORDER.map((type) => {
+            const count = grouped.get(type)?.length || 0
+            if (count === 0) return null
+            const config = REQUIREMENT_CONFIG[type]
+            return (
+              <TabsTrigger
+                key={type}
+                value={type}
+                className="rounded-full border px-4 py-2 text-sm font-medium transition-all [&]:shadow-none [&]:bg-transparent [&[data-active]]:!bg-[var(--tab-color)] [&[data-active]]:!text-white [&[data-active]]:!border-[var(--tab-color)]"
+                style={{
+                  "--tab-color": config.mapColor,
+                  borderColor: config.mapColor,
+                  color: config.mapColor,
+                } as React.CSSProperties}
+              >
+                {config.label}
+                <span
+                  className="ml-2 rounded-full px-2 py-0.5 text-xs"
+                  style={{ backgroundColor: `${config.mapColor}30` }}
+                >
+                  {count}
+                </span>
+              </TabsTrigger>
+            )
+          })}
+        </TabsList>
+      </div>
 
-      {REQUIREMENT_ORDER.map((type) => {
-        const reqs = grouped.get(type) || []
-        if (reqs.length === 0) return null
+      {/* Side-by-side: country list + map */}
+      <div className="flex h-[calc(100vh-14rem)] gap-6">
+        {/* Country list */}
+        <div className="w-[360px] shrink-0 overflow-y-auto pr-2">
+          {REQUIREMENT_ORDER.map((type) => {
+            const reqs = grouped.get(type) || []
+            if (reqs.length === 0) return null
 
-        return (
-          <TabsContent key={type} value={type}>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {reqs
-                .sort((a, b) => {
-                  const nameA = countries[a.destination]?.name || a.destination
-                  const nameB = countries[b.destination]?.name || b.destination
-                  return nameA.localeCompare(nameB)
-                })
-                .map((req, i) => {
-                  const country = countries[req.destination]
-                  return (
-                    <motion.div
-                      key={req.destination}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: 0.2,
-                        delay: Math.min(i * 0.02, 0.5),
-                      }}
-                      className="group flex items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:border-neutral-300 hover:bg-neutral-50"
-                    >
-                      {country && (
-                        <CountryFlag
-                          iso2={country.iso2}
-                          name={country.name}
-                          size={32}
-                        />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-neutral-900">
-                          {country?.name || req.destination}
-                        </div>
-                        {req.days && (
-                          <div className="text-xs font-medium text-neutral-700">
-                            {req.days} days
+            return (
+              <TabsContent key={type} value={type}>
+                <div className="flex flex-col gap-2">
+                  {reqs
+                    .sort((a, b) => {
+                      const nameA = countries[a.destination]?.name || a.destination
+                      const nameB = countries[b.destination]?.name || b.destination
+                      return nameA.localeCompare(nameB)
+                    })
+                    .map((req, i) => {
+                      const country = countries[req.destination]
+                      return (
+                        <motion.div
+                          key={req.destination}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{
+                            duration: 0.2,
+                            delay: Math.min(i * 0.02, 0.5),
+                          }}
+                          className="group flex items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 transition-all hover:border-neutral-300 hover:bg-neutral-50"
+                        >
+                          {country && (
+                            <CountryFlag
+                              iso2={country.iso2}
+                              name={country.name}
+                              size={32}
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-semibold text-neutral-900">
+                              {country?.name || req.destination}
+                            </div>
+                            {req.days && (
+                              <div className="text-xs font-medium text-neutral-700">
+                                {req.days} days
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )
-                })}
-            </div>
-          </TabsContent>
-        )
-      })}
+                        </motion.div>
+                      )
+                    })}
+                </div>
+              </TabsContent>
+            )
+          })}
+        </div>
+
+        {/* Map */}
+        <div className="flex-1 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+          <WorldMap
+            requirements={requirements}
+            passportCode={passportCode}
+            countries={countries}
+          />
+        </div>
+      </div>
     </Tabs>
   )
 }

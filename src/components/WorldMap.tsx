@@ -42,12 +42,18 @@ const WorldMapInner = memo(function WorldMapInner({
   const containerRef = useRef<HTMLDivElement>(null)
 
   const clampPan = useCallback((x: number, y: number, z: number) => {
-    const maxPanX = (500 * (z - 1)) / z
-    const maxPanY = (250 * (z - 1)) / z
+    const basePanX = 120
+    const maxPanX = basePanX + (500 * (z - 1)) / z
+    const maxPanY = (200 * (z - 1)) / z
     return {
       x: Math.min(maxPanX, Math.max(-maxPanX, x)),
       y: Math.min(maxPanY, Math.max(-maxPanY, y)),
     }
+  }, [])
+
+  useEffect(() => {
+    const svg = containerRef.current?.querySelector("svg")
+    if (svg) svg.setAttribute("preserveAspectRatio", "xMidYMid slice")
   }, [])
 
   useEffect(() => {
@@ -101,7 +107,7 @@ const WorldMapInner = memo(function WorldMapInner({
     <div
       ref={containerRef}
       className="relative w-full select-none overflow-hidden"
-      style={{ aspectRatio: "2 / 1", cursor: dragging ? "grabbing" : "grab" }}
+      style={{ cursor: dragging ? "grabbing" : "grab", height: "100%" }}
       onMouseLeave={() => { setTooltip(null); setDragging(false) }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -110,14 +116,15 @@ const WorldMapInner = memo(function WorldMapInner({
       <ComposableMap
         projection="geoNaturalEarth1"
         projectionConfig={{
-          scale: 170,
+          scale: 210,
+          center: [0, 20],
         }}
         width={1000}
-        height={500}
+        height={450}
         className="w-full h-full"
         style={{ backgroundColor: "transparent" }}
       >
-        <g transform={`translate(${500 + pan.x * zoom}, ${250 + pan.y * zoom}) scale(${zoom}) translate(-500, -250)`}>
+        <g transform={`translate(${500 + pan.x * zoom}, ${200 + pan.y * zoom}) scale(${zoom}) translate(-500, -200)`}>
         <Geographies geography={geoData}>
           {({ geographies }) =>
             geographies.map((geo) => {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
+import { ScoreTooltip } from "./ScoreTooltip"
 import type { Country, PassportSummary, VisaRequirement } from "@/lib/types"
 import { REQUIREMENT_CONFIG } from "@/lib/constants"
 import { CountrySearch } from "./CountrySearch"
@@ -84,9 +85,6 @@ export function CompareClient({ countries }: CompareClientProps) {
       {/* Selectors */}
       <div className="grid gap-6 md:grid-cols-2">
         <div>
-          <p className="mb-2 text-sm font-medium text-neutral-600">
-            Passport A
-          </p>
           {countryA ? (
             <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-5 py-3">
               <CountryFlag iso2={countryA.iso2} name={countryA.name} size={56} />
@@ -116,9 +114,6 @@ export function CompareClient({ countries }: CompareClientProps) {
         </div>
 
         <div>
-          <p className="mb-2 text-sm font-medium text-neutral-600">
-            Passport B
-          </p>
           {countryB ? (
             <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 px-5 py-3">
               <CountryFlag iso2={countryB.iso2} name={countryB.name} size={56} />
@@ -163,6 +158,9 @@ export function CompareClient({ countries }: CompareClientProps) {
           {/* Summary */}
           <div className="mb-8 grid gap-4 md:grid-cols-2">
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-6 text-center">
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                <ScoreTooltip>Score</ScoreTooltip>
+              </div>
               <div className="text-3xl font-bold text-emerald-600">
                 {data.summaryA.score}
               </div>
@@ -171,6 +169,9 @@ export function CompareClient({ countries }: CompareClientProps) {
               </div>
             </div>
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-6 text-center">
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                <ScoreTooltip>Score</ScoreTooltip>
+              </div>
               <div className="text-3xl font-bold text-emerald-600">
                 {data.summaryB.score}
               </div>

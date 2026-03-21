@@ -14,14 +14,7 @@ export default function ComparePage() {
   return (
     <div className="min-h-screen pt-24">
       <div className="mx-auto max-w-7xl px-6 py-12">
-        <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
-          Compare Passports
-        </h1>
-        <p className="mt-2 text-neutral-400">
-          See the differences side by side
-        </p>
-
-        <div className="mt-12">
+        <div className="mt-0">
           <Suspense fallback={<div className="text-neutral-500">Loading...</div>}>
             <CompareClient countries={countries} />
           </Suspense>

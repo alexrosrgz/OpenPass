@@ -5,6 +5,7 @@ import type { Country, VisaRequirement, PassportSummary } from "@/lib/types"
 import { CountrySearch } from "./CountrySearch"
 import { CountryFlag } from "./CountryFlag"
 import { PassportDetailClient } from "./PassportDetailClient"
+import { ScoreTooltip } from "./ScoreTooltip"
 import Link from "next/link"
 
 interface PassportExplorerProps {
@@ -42,11 +43,21 @@ export function PassportExplorer({
                 size={48}
                 className="rounded-md shadow"
               />
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <h1 className="text-xl font-bold tracking-tight md:text-2xl">
                   {passportData.country.name}
                 </h1>
               </div>
+
+              <div className="ml-4 flex items-center gap-3 text-neutral-500">
+                <ScoreTooltip><span className="text-[11px] font-semibold uppercase tracking-wider">Score</span></ScoreTooltip>
+                <span className="text-xl font-bold text-neutral-900">{passportData.summary.score}</span>
+                <div className="h-5 w-px bg-neutral-300" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider">Rank</span>
+                <span className="text-xl font-bold text-neutral-900">#{passportData.summary.rank}</span>
+              </div>
+
+              <div className="flex-1" />
 
               {/* Inline search to switch passport */}
               <div className="hidden w-64 md:block">
@@ -57,22 +68,6 @@ export function PassportExplorer({
                   className=""
                   compact
                 />
-              </div>
-
-              <div className="flex items-center gap-5">
-                <div className="text-right">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-                    Score
-                  </div>
-                  <div className="text-xl font-bold">{passportData.summary.score}</div>
-                </div>
-                <div className="h-8 w-px bg-neutral-200" />
-                <div className="text-right">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-                    Rank
-                  </div>
-                  <div className="text-xl font-bold">#{passportData.summary.rank}</div>
-                </div>
               </div>
             </div>
           </div>

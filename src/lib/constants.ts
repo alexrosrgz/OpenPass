@@ -8,7 +8,7 @@ export const REQUIREMENT_CONFIG: Record<
     label: "Visa Free",
     color: "text-emerald-700",
     bgColor: "bg-emerald-100",
-    mapColor: "#34d399",
+    mapColor: "#10b981",
   },
   "visa-on-arrival": {
     label: "Visa on Arrival",

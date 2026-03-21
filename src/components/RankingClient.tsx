@@ -5,6 +5,7 @@ import Link from "next/link"
 import type { PassportSummary, Country } from "@/lib/types"
 import { CountryFlag } from "./CountryFlag"
 import { RankingMap, scoreToColor } from "./RankingMap"
+import { ScoreTooltip } from "./ScoreTooltip"
 
 interface RankingPassport extends PassportSummary {
   iso2: string
@@ -49,7 +50,7 @@ export function RankingClient({ passports, countriesMap }: RankingClientProps) {
             <div className="sticky top-0 z-10 grid grid-cols-[44px_1fr_56px_72px] items-center gap-2 border-b border-neutral-200 bg-neutral-50/90 px-5 py-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-600 backdrop-blur-sm">
               <div>Rank</div>
               <div>Country</div>
-              <div className="text-right">Score</div>
+              <div className="text-right"><ScoreTooltip>Score</ScoreTooltip></div>
               <div className="text-right">Visa-Free</div>
             </div>
 
@@ -88,8 +89,19 @@ export function RankingClient({ passports, countriesMap }: RankingClientProps) {
       </div>
 
       {/* Right: map */}
-      <div className="hidden flex-1 md:block">
+      <div className="relative hidden flex-1 md:block">
         <RankingMap passports={passports} countries={countriesMap} />
+        <div className="absolute bottom-[1rem] left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white/90 px-3 py-2 text-[10px] font-medium text-neutral-600 backdrop-blur-sm">
+          <span>Low</span>
+          {["#ef4444", "#f97316", "#fbbf24", "#34d399", "#059669"].map((c) => (
+            <div
+              key={c}
+              className="h-2.5 w-5 rounded-sm"
+              style={{ backgroundColor: c }}
+            />
+          ))}
+          <span>High</span>
+        </div>
       </div>
     </div>
   )

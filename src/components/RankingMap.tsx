@@ -49,12 +49,18 @@ const RankingMapInner = memo(function RankingMapInner({
   const MAX_ZOOM = 8
 
   const clampPan = useCallback((x: number, y: number, z: number) => {
-    const maxPanX = (500 * (z - 1)) / z
+    const basePanX = 120
+    const maxPanX = basePanX + (500 * (z - 1)) / z
     const maxPanY = (250 * (z - 1)) / z
     return {
       x: Math.min(maxPanX, Math.max(-maxPanX, x)),
       y: Math.min(maxPanY, Math.max(-maxPanY, y)),
     }
+  }, [])
+
+  useEffect(() => {
+    const svg = containerRef.current?.querySelector("svg")
+    if (svg) svg.setAttribute("preserveAspectRatio", "xMidYMid slice")
   }, [])
 
   useEffect(() => {
@@ -188,7 +194,7 @@ const RankingMapInner = memo(function RankingMapInner({
             {tooltip.rank > 0 ? (
               <div className="mt-0.5 flex items-center gap-3 text-xs text-neutral-600">
                 <span>Rank <strong>#{tooltip.rank}</strong></span>
-                <span>Score <strong>{tooltip.score}</strong></span>
+                <span>Score: <strong>{tooltip.score}</strong></span>
               </div>
             ) : (
               <div className="mt-0.5 text-xs text-neutral-500">No data</div>
@@ -197,18 +203,6 @@ const RankingMapInner = memo(function RankingMapInner({
         )}
       </AnimatePresence>
 
-      {/* Legend */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white/90 px-3 py-2 text-[10px] font-medium text-neutral-600 backdrop-blur-sm">
-        <span>Low</span>
-        {["#ef4444", "#f97316", "#fbbf24", "#34d399", "#059669"].map((c) => (
-          <div
-            key={c}
-            className="h-2.5 w-5 rounded-sm"
-            style={{ backgroundColor: c }}
-          />
-        ))}
-        <span>High</span>
-      </div>
     </div>
   )
 })
