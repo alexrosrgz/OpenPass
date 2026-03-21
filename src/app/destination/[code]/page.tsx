@@ -88,7 +88,7 @@ export default async function DestinationPage({
 
   return (
     <div className="min-h-screen pt-24">
-      <div className="mx-auto max-w-7xl px-6">
+      <div className="mx-auto max-w-7xl px-4 md:px-6">
         {/* Hero */}
         <div className="flex flex-col items-center gap-6 py-12 md:flex-row md:items-center md:gap-12">
           <CountryFlag
@@ -110,7 +110,7 @@ export default async function DestinationPage({
           </div>
 
           {userRequirement && passportCountry && (
-            <div className="ml-auto flex items-center gap-4 rounded-2xl border px-6 py-4" style={{ borderColor: REQUIREMENT_CONFIG[userRequirement.type].mapColor, backgroundColor: `${REQUIREMENT_CONFIG[userRequirement.type].mapColor}10` }}>
+            <div className="ml-0 flex items-center gap-4 rounded-2xl border px-4 py-3 md:ml-auto md:px-6 md:py-4" style={{ borderColor: REQUIREMENT_CONFIG[userRequirement.type].mapColor, backgroundColor: `${REQUIREMENT_CONFIG[userRequirement.type].mapColor}10` }}>
               <CountryFlag iso2={passportCountry.iso2} name={passportCountry.name} size={40} />
               <div>
                 <div className="text-sm text-neutral-600">

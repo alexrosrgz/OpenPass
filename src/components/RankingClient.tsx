@@ -47,7 +47,7 @@ export function RankingClient({ passports, countriesMap }: RankingClientProps) {
 
           <div className="flex-1 overflow-y-auto">
             {/* Header */}
-            <div className="sticky top-0 z-10 grid grid-cols-[44px_1fr_56px_72px] items-center gap-2 border-b border-neutral-200 bg-neutral-50/90 px-5 py-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-600 backdrop-blur-sm">
+            <div className="sticky top-0 z-10 grid grid-cols-[36px_1fr_48px_60px] md:grid-cols-[44px_1fr_56px_72px] items-center gap-2 border-b border-neutral-200 bg-neutral-50/90 px-5 py-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-600 backdrop-blur-sm">
               <div>Rank</div>
               <div>Country</div>
               <div className="text-right"><ScoreTooltip>Score</ScoreTooltip></div>
@@ -58,7 +58,7 @@ export function RankingClient({ passports, countriesMap }: RankingClientProps) {
               <Link
                 key={passport.code}
                 href={`/?passport=${passport.code}`}
-                className="grid grid-cols-[44px_1fr_56px_72px] items-center gap-2 border-b border-neutral-100 px-5 py-2.5 transition-colors hover:bg-neutral-50"
+                className="grid grid-cols-[36px_1fr_48px_60px] md:grid-cols-[44px_1fr_56px_72px] items-center gap-2 border-b border-neutral-100 px-5 py-2.5 transition-colors hover:bg-neutral-50"
               >
                 <div className="text-xs font-medium text-neutral-500">
                   #{passport.rank}

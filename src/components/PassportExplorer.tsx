@@ -36,7 +36,7 @@ export function PassportExplorer({
         <>
           {/* Compact header bar */}
           <div className="border-b border-neutral-200 bg-white">
-            <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-3">
+            <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 md:gap-4 md:px-6">
               <CountryFlag
                 iso2={passportData.country.iso2}
                 name={passportData.country.name}
@@ -49,7 +49,7 @@ export function PassportExplorer({
                 </h1>
               </div>
 
-              <div className="ml-4 flex items-center gap-3 text-neutral-500">
+              <div className="ml-0 flex items-center gap-2 text-neutral-500 md:ml-4 md:gap-3">
                 <ScoreTooltip><span className="text-[11px] font-semibold uppercase tracking-wider">Score</span></ScoreTooltip>
                 <span className="text-xl font-bold text-neutral-900">{passportData.summary.score}</span>
                 <div className="h-5 w-px bg-neutral-300" />
@@ -57,7 +57,7 @@ export function PassportExplorer({
                 <span className="text-xl font-bold text-neutral-900">#{passportData.summary.rank}</span>
               </div>
 
-              <div className="flex-1" />
+              <div className="hidden md:block md:flex-1" />
 
               {/* Inline search to switch passport */}
               <div className="hidden w-64 md:block">

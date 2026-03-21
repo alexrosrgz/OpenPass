@@ -36,7 +36,7 @@ export function RequirementGrid({
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
       {/* Tabs row */}
-      <div className="mb-4 flex items-center gap-4">
+      <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
         <h2 className="text-2xl font-bold">Destinations</h2>
         <TabsList className="flex h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
           {REQUIREMENT_ORDER.map((type) => {
@@ -68,9 +68,9 @@ export function RequirementGrid({
       </div>
 
       {/* Side-by-side: country list + map */}
-      <div className="flex h-[calc(100vh-14rem)] gap-6">
+      <div className="flex flex-col gap-4 md:h-[calc(100vh-14rem)] md:flex-row md:gap-6">
         {/* Country list */}
-        <div className="w-[360px] shrink-0 overflow-y-auto pr-2">
+        <div className="w-full max-h-[50vh] overflow-y-auto md:w-[360px] md:max-h-none md:shrink-0 md:pr-2">
           {REQUIREMENT_ORDER.map((type) => {
             const reqs = grouped.get(type) || []
             if (reqs.length === 0) return null
@@ -124,7 +124,7 @@ export function RequirementGrid({
         </div>
 
         {/* Map */}
-        <div className="flex-1 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+        <div className="hidden flex-1 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 md:block">
           <WorldMap
             requirements={requirements}
             passportCode={passportCode}

@@ -86,11 +86,11 @@ export function CompareClient({ countries }: CompareClientProps) {
       <div className="grid gap-6 md:grid-cols-2">
         <div>
           {countryA ? (
-            <div className="flex items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-6 py-5">
+            <div className="flex items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 md:px-6 md:py-5">
               <CountryFlag iso2={countryA.iso2} name={countryA.name} size={72} />
               <span className="flex-1 font-medium">{countryA.name}</span>
               {data && (
-                <div className="flex items-center gap-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2 text-sm md:gap-3">
                   <ScoreTooltip><span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Score</span></ScoreTooltip>
                   <span className="text-lg font-bold text-emerald-600">{data.summaryA.score}</span>
                   <span className="text-neutral-400">Rank #{data.summaryA.rank}</span>
@@ -122,11 +122,11 @@ export function CompareClient({ countries }: CompareClientProps) {
 
         <div>
           {countryB ? (
-            <div className="flex items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-6 py-5">
+            <div className="flex items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 md:px-6 md:py-5">
               <CountryFlag iso2={countryB.iso2} name={countryB.name} size={72} />
               <span className="flex-1 font-medium">{countryB.name}</span>
               {data && (
-                <div className="flex items-center gap-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2 text-sm md:gap-3">
                   <ScoreTooltip><span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Score</span></ScoreTooltip>
                   <span className="text-lg font-bold text-emerald-600">{data.summaryB.score}</span>
                   <span className="text-neutral-400">Rank #{data.summaryB.rank}</span>
@@ -213,8 +213,8 @@ export function CompareClient({ countries }: CompareClientProps) {
           </div>
 
           {/* Comparison table */}
-          <div className="overflow-hidden rounded-xl border border-neutral-200">
-            <div className="grid grid-cols-[1fr_140px_140px] items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-4 py-3 text-xs font-medium uppercase tracking-wider text-neutral-700">
+          <div className="overflow-x-auto rounded-xl border border-neutral-200">
+            <div className="min-w-[360px] grid grid-cols-[1fr_100px_100px] md:grid-cols-[1fr_140px_140px] items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-4 py-3 text-xs font-medium uppercase tracking-wider text-neutral-700">
               <div>Destination</div>
               <div className="text-center">{countryA?.name || codeA}</div>
               <div className="text-center">{countryB?.name || codeB}</div>
@@ -226,7 +226,7 @@ export function CompareClient({ countries }: CompareClientProps) {
                 return (
                   <div
                     key={row.destination}
-                    className="grid grid-cols-[1fr_140px_140px] items-center gap-2 border-b border-neutral-100 px-4 py-2.5 text-sm"
+                    className="min-w-[360px] grid grid-cols-[1fr_100px_100px] md:grid-cols-[1fr_140px_140px] items-center gap-2 border-b border-neutral-100 px-4 py-2.5 text-sm"
                   >
                     <div className="flex items-center gap-2">
                       {dest && (
