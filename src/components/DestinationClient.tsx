@@ -5,23 +5,27 @@ import type { Country, RequirementType } from "@/lib/types"
 import { REQUIREMENT_CONFIG, REQUIREMENT_ORDER } from "@/lib/constants"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CountryFlag } from "./CountryFlag"
+import { CountrySearch } from "./CountrySearch"
 import Link from "next/link"
 
 interface DestinationClientProps {
   grouped: Record<RequirementType, { passport: string; days?: number }[]>
   countriesMap: Record<string, Country>
+  countries: Country[]
 }
 
 export function DestinationClient({
   grouped,
   countriesMap,
+  countries,
 }: DestinationClientProps) {
   const defaultTab =
     REQUIREMENT_ORDER.find((t) => grouped[t].length > 0) || "visa-free"
 
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
-      <TabsList className="mb-6 flex h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <TabsList className="flex h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
         {REQUIREMENT_ORDER.map((type) => {
           const count = grouped[type].length
           if (count === 0) return null
@@ -39,7 +43,16 @@ export function DestinationClient({
             </TabsTrigger>
           )
         })}
-      </TabsList>
+        </TabsList>
+        <div className="ml-auto hidden w-56 md:block">
+          <CountrySearch
+            countries={countries}
+            placeholder="Switch destination..."
+            navigateTo={(code) => `/destination/${code}`}
+            compact
+          />
+        </div>
+      </div>
 
       {REQUIREMENT_ORDER.map((type) => {
         const entries = grouped[type]

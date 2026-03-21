@@ -93,7 +93,7 @@ export function CompareClient({ countries }: CompareClientProps) {
                 <div className="flex items-center gap-3 text-sm">
                   <ScoreTooltip><span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Score</span></ScoreTooltip>
                   <span className="text-lg font-bold text-emerald-600">{data.summaryA.score}</span>
-                  <span className="text-neutral-400">#{data.summaryA.rank}</span>
+                  <span className="text-neutral-400">Rank #{data.summaryA.rank}</span>
                 </div>
               )}
               <button
@@ -129,7 +129,7 @@ export function CompareClient({ countries }: CompareClientProps) {
                 <div className="flex items-center gap-3 text-sm">
                   <ScoreTooltip><span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Score</span></ScoreTooltip>
                   <span className="text-lg font-bold text-emerald-600">{data.summaryB.score}</span>
-                  <span className="text-neutral-400">#{data.summaryB.rank}</span>
+                  <span className="text-neutral-400">Rank #{data.summaryB.rank}</span>
                 </div>
               )}
               <button

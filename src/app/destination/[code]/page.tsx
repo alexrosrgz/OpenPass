@@ -74,7 +74,7 @@ export default async function DestinationPage({
     <div className="min-h-screen pt-24">
       <div className="mx-auto max-w-7xl px-6">
         {/* Hero */}
-        <div className="flex flex-col items-center gap-6 py-12 md:flex-row md:items-start md:gap-12">
+        <div className="flex flex-col items-center gap-6 py-12 md:flex-row md:items-center md:gap-12">
           <CountryFlag
             iso2={country.iso2}
             name={country.name}
@@ -91,7 +91,6 @@ export default async function DestinationPage({
               </span>{" "}
               passports can enter without a prior visa
             </p>
-
           </div>
         </div>
 
@@ -100,6 +99,7 @@ export default async function DestinationPage({
           <DestinationClient
             grouped={grouped}
             countriesMap={countriesMap}
+            countries={allCountries}
           />
         </div>
       </div>
