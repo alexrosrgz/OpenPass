@@ -10,6 +10,7 @@ interface CountrySearchProps {
   countries: Country[]
   placeholder?: string
   navigateTo?: (code: string) => string
+  onSelect?: (country: Country) => void
   className?: string
   compact?: boolean
 }
@@ -17,7 +18,8 @@ interface CountrySearchProps {
 export function CountrySearch({
   countries,
   placeholder = "Search for a country...",
-  navigateTo = (code) => `/?passport=${code}`,
+  navigateTo,
+  onSelect,
   className = "",
   compact = false,
 }: CountrySearchProps) {
@@ -43,9 +45,14 @@ export function CountrySearch({
     (country: Country) => {
       setQuery("")
       setIsOpen(false)
-      router.push(navigateTo(country.iso3))
+      if (onSelect) {
+        onSelect(country)
+      } else {
+        const url = navigateTo ? navigateTo(country.iso3) : `/?passport=${country.iso3}`
+        router.push(url)
+      }
     },
-    [router, navigateTo]
+    [router, navigateTo, onSelect]
   )
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

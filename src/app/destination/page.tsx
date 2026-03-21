@@ -17,9 +17,9 @@ export default function DestinationIndexPage() {
           Destinations
         </h1>
         <p className="mb-10 text-lg text-neutral-600">
-          Where are you planning to go?
+          Select your passport and where you want to go
         </p>
-        <DestinationSearch countries={countries} />
+        <DestinationSearch countries={countries} showPassportPicker />
       </div>
     </div>
   )

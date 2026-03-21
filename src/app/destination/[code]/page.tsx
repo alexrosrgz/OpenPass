@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import {
   getDestinationRequirements,
+  getPassportRequirements,
   getCountry,
   getAllCountries,
   getAllPassports,
@@ -31,13 +32,28 @@ export async function generateMetadata({
 
 export default async function DestinationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ code: string }>
+  searchParams: Promise<{ passport?: string }>
 }) {
   const { code } = await params
+  const { passport } = await searchParams
   const upperCode = code.toUpperCase()
   const country = getCountry(upperCode)
   if (!country) notFound()
+
+  // Look up the user's specific visa requirement
+  const passportCode = passport?.toUpperCase()
+  const passportCountry = passportCode ? getCountry(passportCode) : null
+  let userRequirement: { type: RequirementType; days?: number } | null = null
+  if (passportCode) {
+    const passportReqs = getPassportRequirements(passportCode)
+    const req = passportReqs.find((r) => r.destination === upperCode)
+    if (req) {
+      userRequirement = { type: req.requirement, days: req.days }
+    }
+  }
 
   const requirements = getDestinationRequirements(upperCode)
 
@@ -92,6 +108,21 @@ export default async function DestinationPage({
               passports can enter without a prior visa
             </p>
           </div>
+
+          {userRequirement && passportCountry && (
+            <div className="ml-auto flex items-center gap-4 rounded-2xl border px-6 py-4" style={{ borderColor: REQUIREMENT_CONFIG[userRequirement.type].mapColor, backgroundColor: `${REQUIREMENT_CONFIG[userRequirement.type].mapColor}10` }}>
+              <CountryFlag iso2={passportCountry.iso2} name={passportCountry.name} size={40} />
+              <div>
+                <div className="text-sm text-neutral-600">
+                  With a <span className="font-semibold text-neutral-900">{passportCountry.name}</span> passport
+                </div>
+                <div className="text-xl font-bold" style={{ color: REQUIREMENT_CONFIG[userRequirement.type].mapColor }}>
+                  {REQUIREMENT_CONFIG[userRequirement.type].label}
+                  {userRequirement.days && <span className="ml-1 text-base font-medium text-neutral-600">· {userRequirement.days} days</span>}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content */}
