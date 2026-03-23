@@ -28,9 +28,9 @@ export function RankingClient({ passports, countriesMap }: RankingClientProps) {
   const maxScore = passports.length > 0 ? passports[0].score : 1
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] gap-4 py-4" style={{ paddingLeft: "max(1.5rem, calc((100vw - 80rem) / 2 + 1.5rem))", paddingRight: "max(1.5rem, calc((100vw - 80rem) / 2 + 1.5rem))" }}>
+    <div className="flex flex-col gap-4 py-4 md:h-[calc(100vh-3.5rem)] md:flex-row" style={{ paddingLeft: "max(1.5rem, calc((100vw - 80rem) / 2 + 1.5rem))", paddingRight: "max(1.5rem, calc((100vw - 80rem) / 2 + 1.5rem))" }}>
       {/* Left: list */}
-      <div className="flex w-full flex-col md:w-[460px] md:min-w-[460px]">
+      <div className="order-2 flex w-full flex-col md:order-1 md:w-[460px] md:min-w-[460px]">
         <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
           <div className="px-5 pt-4 pb-3">
             <p className="text-xs text-neutral-600">
@@ -88,8 +88,8 @@ export function RankingClient({ passports, countriesMap }: RankingClientProps) {
         </div>
       </div>
 
-      {/* Right: map */}
-      <div className="relative hidden flex-1 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 md:block">
+      {/* Right: map (mobile: top; desktop: right side) */}
+      <div className="relative order-1 h-[250px] overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 md:order-2 md:h-auto md:flex-1">
         <RankingMap passports={passports} countries={countriesMap} />
         <div className="absolute bottom-[1rem] left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white/90 px-3 py-2 text-[10px] font-medium text-neutral-600 backdrop-blur-sm">
           <span>Low</span>

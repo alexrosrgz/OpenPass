@@ -25,7 +25,7 @@ export function DestinationClient({
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        <TabsList className="flex h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
+        <TabsList className="flex flex-wrap justify-start gap-2 bg-transparent p-0 !h-auto">
         {REQUIREMENT_ORDER.map((type) => {
           const count = grouped[type].length
           if (count === 0) return null
@@ -44,7 +44,7 @@ export function DestinationClient({
           )
         })}
         </TabsList>
-        <div className="ml-auto hidden w-56 md:block">
+        <div className="w-full md:ml-auto md:w-56">
           <CountrySearch
             countries={countries}
             placeholder="Switch destination..."

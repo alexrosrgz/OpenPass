@@ -213,20 +213,20 @@ export function CompareClient({ countries }: CompareClientProps) {
           </div>
 
           {/* Comparison table */}
-          <div className="overflow-x-auto rounded-xl border border-neutral-200">
-            <div className="min-w-[360px] grid grid-cols-[1fr_100px_100px] md:grid-cols-[1fr_140px_140px] items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-4 py-3 text-xs font-medium uppercase tracking-wider text-neutral-700">
+          <div className="overflow-auto rounded-xl border border-neutral-200 max-h-[600px]">
+            <div className="sticky top-0 z-10 grid min-w-fit grid-cols-[150px_100px_100px] md:grid-cols-[1fr_140px_140px] items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-4 py-3 text-xs font-medium uppercase tracking-wider text-neutral-700">
               <div>Destination</div>
               <div className="text-center">{countryA?.name || codeA}</div>
               <div className="text-center">{countryB?.name || codeB}</div>
             </div>
 
-            <div className="max-h-[600px] overflow-y-auto">
+            <div>
               {data.comparison.map((row) => {
                 const dest = data.countriesMap[row.destination]
                 return (
                   <div
                     key={row.destination}
-                    className="min-w-[360px] grid grid-cols-[1fr_100px_100px] md:grid-cols-[1fr_140px_140px] items-center gap-2 border-b border-neutral-100 px-4 py-2.5 text-sm"
+                    className="grid grid-cols-[150px_100px_100px] md:grid-cols-[1fr_140px_140px] items-center gap-2 border-b border-neutral-100 px-4 py-2.5 text-sm"
                   >
                     <div className="flex items-center gap-2">
                       {dest && (
@@ -236,7 +236,7 @@ export function CompareClient({ countries }: CompareClientProps) {
                           size={24}
                         />
                       )}
-                      <span className="truncate">
+                      <span>
                         {dest?.name || row.destination}
                       </span>
                     </div>

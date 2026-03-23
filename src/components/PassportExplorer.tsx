@@ -60,7 +60,7 @@ export function PassportExplorer({
               <div className="hidden md:block md:flex-1" />
 
               {/* Inline search to switch passport */}
-              <div className="hidden w-64 md:block">
+              <div className="w-full md:w-64">
                 <CountrySearch
                   countries={countries}
                   placeholder="Switch passport..."

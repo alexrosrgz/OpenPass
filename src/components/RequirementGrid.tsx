@@ -38,7 +38,7 @@ export function RequirementGrid({
       {/* Tabs row */}
       <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
         <h2 className="text-2xl font-bold">Destinations</h2>
-        <TabsList className="flex h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
+        <TabsList className="flex flex-wrap justify-start gap-2 bg-transparent p-0 !h-auto">
           {REQUIREMENT_ORDER.map((type) => {
             const count = grouped.get(type)?.length || 0
             if (count === 0) return null
@@ -69,8 +69,17 @@ export function RequirementGrid({
 
       {/* Side-by-side: country list + map */}
       <div className="flex flex-col gap-4 md:h-[calc(100vh-14rem)] md:flex-row md:gap-6">
+        {/* Map (mobile: top, fixed height; desktop: right side, flex) */}
+        <div className="h-[250px] overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 md:order-2 md:h-auto md:flex-1">
+          <WorldMap
+            requirements={requirements}
+            passportCode={passportCode}
+            countries={countries}
+          />
+        </div>
+
         {/* Country list */}
-        <div className="w-full max-h-[50vh] overflow-y-auto md:w-[360px] md:max-h-none md:shrink-0 md:pr-2">
+        <div className="w-full max-h-[50vh] overflow-y-auto md:order-1 md:w-[360px] md:max-h-none md:shrink-0 md:pr-2">
           {REQUIREMENT_ORDER.map((type) => {
             const reqs = grouped.get(type) || []
             if (reqs.length === 0) return null
@@ -123,14 +132,6 @@ export function RequirementGrid({
           })}
         </div>
 
-        {/* Map */}
-        <div className="hidden flex-1 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 md:block">
-          <WorldMap
-            requirements={requirements}
-            passportCode={passportCode}
-            countries={countries}
-          />
-        </div>
       </div>
     </Tabs>
   )
