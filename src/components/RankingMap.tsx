@@ -80,12 +80,13 @@ const RankingMapInner = memo(function RankingMapInner({
     return () => el.removeEventListener("wheel", onWheel)
   }, [clampPan])
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
     setDragging(true)
+    ;(e.target as Element).setPointerCapture(e.pointerId)
     dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
   }, [pan])
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragging) return
     const dx = e.clientX - dragStart.current.x
     const dy = e.clientY - dragStart.current.y
@@ -94,7 +95,7 @@ const RankingMapInner = memo(function RankingMapInner({
     setPan(clampPan(rawX, rawY, zoom))
   }, [dragging, zoom, clampPan])
 
-  const handleMouseUp = useCallback(() => {
+  const handlePointerUp = useCallback(() => {
     setDragging(false)
   }, [])
 
@@ -121,11 +122,11 @@ const RankingMapInner = memo(function RankingMapInner({
     <div
       ref={containerRef}
       className="relative flex h-full w-full select-none items-center justify-center overflow-hidden"
-      style={{ cursor: dragging ? "grabbing" : "grab" }}
-      onMouseLeave={() => { setTooltip(null); setDragging(false) }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+      style={{ cursor: dragging ? "grabbing" : "grab", touchAction: "none" }}
+      onPointerLeave={() => { setTooltip(null); setDragging(false) }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
     >
       <ComposableMap
         projection="geoNaturalEarth1"
