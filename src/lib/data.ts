@@ -71,7 +71,7 @@ export function getAllPassports(): PassportSummary[] {
   let currentRank = 1
   for (let i = 0; i < summaries.length; i++) {
     if (i > 0 && summaries[i].score < summaries[i - 1].score) {
-      currentRank = i + 1
+      currentRank++
     }
     summaries[i].rank = currentRank
   }
