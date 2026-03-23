@@ -42,6 +42,7 @@ const WorldMapInner = memo(function WorldMapInner({
   const [dragging, setDragging] = useState(false)
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
   const wasDrag = useRef(false)
+  const activePointers = useRef(new Set<number>())
 
   const MIN_ZOOM = 1
   const MAX_ZOOM = 8
@@ -63,6 +64,16 @@ const WorldMapInner = memo(function WorldMapInner({
   }, [])
 
   useEffect(() => {
+    const dismiss = () => setTooltip(null)
+    window.addEventListener("scroll", dismiss, { passive: true })
+    document.addEventListener("touchstart", dismiss, { passive: true })
+    return () => {
+      window.removeEventListener("scroll", dismiss)
+      document.removeEventListener("touchstart", dismiss)
+    }
+  }, [])
+
+  useEffect(() => {
     const el = containerRef.current
     if (!el) return
     const onWheel = (e: WheelEvent) => {
@@ -74,19 +85,62 @@ const WorldMapInner = memo(function WorldMapInner({
         return newZ
       })
     }
+    let lastPinchDist = 0
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        lastPinchDist = Math.hypot(dx, dy)
+      }
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        const dist = Math.hypot(dx, dy)
+        if (lastPinchDist > 0) {
+          const raw = dist / lastPinchDist
+          const factor = 1 + (raw - 1) * 0.4
+          setZoom((prevZ) => {
+            const newZ = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prevZ * factor))
+            setPan((prevPan) => clampPan(prevPan.x, prevPan.y, newZ))
+            return newZ
+          })
+        }
+        lastPinchDist = dist
+      }
+    }
+    const onTouchEnd = () => { lastPinchDist = 0 }
     el.addEventListener("wheel", onWheel, { passive: false })
-    return () => el.removeEventListener("wheel", onWheel)
+    el.addEventListener("touchstart", onTouchStart, { passive: true })
+    el.addEventListener("touchmove", onTouchMove, { passive: false })
+    el.addEventListener("touchend", onTouchEnd)
+    return () => {
+      el.removeEventListener("wheel", onWheel)
+      el.removeEventListener("touchstart", onTouchStart)
+      el.removeEventListener("touchmove", onTouchMove)
+      el.removeEventListener("touchend", onTouchEnd)
+    }
   }, [clampPan])
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    setDragging(true)
-    wasDrag.current = false
+    activePointers.current.add(e.pointerId)
     ;(e.target as Element).setPointerCapture(e.pointerId)
-    dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
+    if (activePointers.current.size === 1) {
+      setDragging(true)
+      wasDrag.current = false
+      dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
+    } else {
+      // Second finger — cancel drag, let pinch handle it
+      setDragging(false)
+      wasDrag.current = true
+      setTooltip(null)
+    }
   }, [pan])
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragging) return
+    if (!dragging || activePointers.current.size !== 1) return
     const dx = e.clientX - dragStart.current.x
     const dy = e.clientY - dragStart.current.y
     if (!wasDrag.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
@@ -99,24 +153,27 @@ const WorldMapInner = memo(function WorldMapInner({
   }, [dragging, zoom, clampPan])
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    setDragging(false)
-    if (!wasDrag.current) {
-      const el = document.elementFromPoint(e.clientX, e.clientY)
-      const path = el?.closest("[data-iso3]")
-      const iso3 = path?.getAttribute("data-iso3")
-      if (iso3) {
-        const req = reqMap.get(iso3)
-        const fillColor = getColor(iso3)
-        const name = countries[iso3]?.name || iso3
-        const reqLabel = req
-          ? REQUIREMENT_CONFIG[req.requirement].label +
-            (req.days ? ` (${req.days} days)` : "")
-          : iso3 === passportCode
-          ? "Your passport"
-          : "No data"
-        setTooltip({ name, requirement: reqLabel, color: fillColor, x: e.clientX, y: e.clientY })
-      } else {
-        setTooltip(null)
+    activePointers.current.delete(e.pointerId)
+    if (activePointers.current.size === 0) {
+      setDragging(false)
+      if (!wasDrag.current) {
+        const el = document.elementFromPoint(e.clientX, e.clientY)
+        const path = el?.closest("[data-iso3]")
+        const iso3 = path?.getAttribute("data-iso3")
+        if (iso3) {
+          const req = reqMap.get(iso3)
+          const fillColor = getColor(iso3)
+          const name = countries[iso3]?.name || iso3
+          const reqLabel = req
+            ? REQUIREMENT_CONFIG[req.requirement].label +
+              (req.days ? ` (${req.days} days)` : "")
+            : iso3 === passportCode
+            ? "Your passport"
+            : "No data"
+          setTooltip({ name, requirement: reqLabel, color: fillColor, x: e.clientX, y: e.clientY })
+        } else {
+          setTooltip(null)
+        }
       }
     }
   }, [countries, passportCode])
@@ -151,10 +208,11 @@ const WorldMapInner = memo(function WorldMapInner({
       ref={containerRef}
       className="relative w-full select-none overflow-hidden"
       style={{ cursor: dragging ? "grabbing" : "grab", height: "100%", touchAction: "none" }}
-      onPointerLeave={() => { setTooltip(null); setDragging(false) }}
+      onPointerLeave={() => { setTooltip(null); setDragging(false); activePointers.current.clear() }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={(e) => { activePointers.current.delete(e.pointerId); if (activePointers.current.size === 0) setDragging(false) }}
     >
       <ComposableMap
         projection="geoNaturalEarth1"
@@ -195,7 +253,8 @@ const WorldMapInner = memo(function WorldMapInner({
                     },
                     pressed: { outline: "none" },
                   }}
-                  onMouseEnter={(evt) => {
+                  onPointerEnter={(evt) => {
+                    if (evt.pointerType !== "mouse") return
                     const name =
                       countries[iso3]?.name || geoName || "Unknown"
                     const reqLabel = req
@@ -212,7 +271,7 @@ const WorldMapInner = memo(function WorldMapInner({
                       y: evt.clientY,
                     })
                   }}
-                  onMouseLeave={() => setTooltip(null)}
+                  onPointerLeave={(evt) => { if (evt.pointerType === "mouse") setTooltip(null) }}
                 />
               )
             })

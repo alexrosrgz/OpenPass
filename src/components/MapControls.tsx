@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Plus, Minus } from "lucide-react"
 
 interface MapControlsProps {
@@ -9,14 +10,18 @@ interface MapControlsProps {
 }
 
 export function MapControls({ onZoomIn, onZoomOut, showHint = true }: MapControlsProps) {
+  const [isTouch, setIsTouch] = useState(false)
+  useEffect(() => {
+    setIsTouch("ontouchstart" in window)
+  }, [])
+
   return (
     <>
-      {/* Zoom buttons */}
       {/* Zoom buttons + hint */}
       <div className="absolute top-3 right-3 z-10 flex items-start gap-1.5">
         {showHint && (
           <div className="mt-0.5 rounded-md bg-white/80 px-2 py-1 text-[10px] text-neutral-400 backdrop-blur-sm">
-            Drag to move · Scroll to zoom
+            {isTouch ? "Drag to move · Pinch to zoom" : "Drag to move · Scroll to zoom"}
           </div>
         )}
         <div className="flex flex-col gap-1">
