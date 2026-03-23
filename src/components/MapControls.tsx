@@ -12,7 +12,7 @@ interface MapControlsProps {
 export function MapControls({ onZoomIn, onZoomOut, showHint = true }: MapControlsProps) {
   const [isTouch, setIsTouch] = useState(false)
   useEffect(() => {
-    setIsTouch("ontouchstart" in window)
+    setIsTouch(window.matchMedia("(hover: none)").matches)
   }, [])
 
   return (
