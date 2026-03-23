@@ -41,6 +41,7 @@ const WorldMapInner = memo(function WorldMapInner({
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
+  const wasDrag = useRef(false)
 
   const MIN_ZOOM = 1
   const MAX_ZOOM = 8
@@ -79,6 +80,7 @@ const WorldMapInner = memo(function WorldMapInner({
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     setDragging(true)
+    wasDrag.current = false
     ;(e.target as Element).setPointerCapture(e.pointerId)
     dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
   }, [pan])
@@ -87,14 +89,37 @@ const WorldMapInner = memo(function WorldMapInner({
     if (!dragging) return
     const dx = e.clientX - dragStart.current.x
     const dy = e.clientY - dragStart.current.y
+    if (!wasDrag.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+      wasDrag.current = true
+      setTooltip(null)
+    }
     const rawX = dragStart.current.panX + dx / zoom
     const rawY = dragStart.current.panY + dy / zoom
     setPan(clampPan(rawX, rawY, zoom))
   }, [dragging, zoom, clampPan])
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
     setDragging(false)
-  }, [])
+    if (!wasDrag.current) {
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      const path = el?.closest("[data-iso3]")
+      const iso3 = path?.getAttribute("data-iso3")
+      if (iso3) {
+        const req = reqMap.get(iso3)
+        const fillColor = getColor(iso3)
+        const name = countries[iso3]?.name || iso3
+        const reqLabel = req
+          ? REQUIREMENT_CONFIG[req.requirement].label +
+            (req.days ? ` (${req.days} days)` : "")
+          : iso3 === passportCode
+          ? "Your passport"
+          : "No data"
+        setTooltip({ name, requirement: reqLabel, color: fillColor, x: e.clientX, y: e.clientY })
+      } else {
+        setTooltip(null)
+      }
+    }
+  }, [countries, passportCode])
 
   const handleZoomIn = useCallback(() => {
     setZoom((z) => Math.min(MAX_ZOOM, z * 1.3))
@@ -156,6 +181,7 @@ const WorldMapInner = memo(function WorldMapInner({
                 <Geography
                   key={geoId || geoName}
                   geography={geo}
+                  data-iso3={iso3}
                   fill={fillColor}
                   stroke="#ffffff"
                   strokeWidth={0.5}

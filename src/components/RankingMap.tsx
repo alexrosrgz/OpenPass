@@ -44,6 +44,7 @@ const RankingMapInner = memo(function RankingMapInner({
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
+  const wasDrag = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const MIN_ZOOM = 1
@@ -82,6 +83,7 @@ const RankingMapInner = memo(function RankingMapInner({
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     setDragging(true)
+    wasDrag.current = false
     ;(e.target as Element).setPointerCapture(e.pointerId)
     dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
   }, [pan])
@@ -90,14 +92,38 @@ const RankingMapInner = memo(function RankingMapInner({
     if (!dragging) return
     const dx = e.clientX - dragStart.current.x
     const dy = e.clientY - dragStart.current.y
+    if (!wasDrag.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+      wasDrag.current = true
+      setTooltip(null)
+    }
     const rawX = dragStart.current.panX + dx / zoom
     const rawY = dragStart.current.panY + dy / zoom
     setPan(clampPan(rawX, rawY, zoom))
   }, [dragging, zoom, clampPan])
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
     setDragging(false)
-  }, [])
+    if (!wasDrag.current) {
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      const path = el?.closest("[data-iso3]")
+      const iso3 = path?.getAttribute("data-iso3")
+      if (iso3) {
+        const data = passportMap.get(iso3)
+        const fillColor = data ? scoreToColor(data.score, maxScore) : "#e5e5e5"
+        const name = countries[iso3]?.name || data?.name || iso3
+        setTooltip({
+          name,
+          rank: data?.rank || 0,
+          score: data?.score || 0,
+          color: fillColor,
+          x: e.clientX,
+          y: e.clientY,
+        })
+      } else {
+        setTooltip(null)
+      }
+    }
+  }, [countries, passports])
 
   const handleZoomIn = useCallback(() => {
     setZoom((z) => Math.min(MAX_ZOOM, z * 1.3))
@@ -150,6 +176,7 @@ const RankingMapInner = memo(function RankingMapInner({
                 <Geography
                   key={geoId || geoName}
                   geography={geo}
+                  data-iso3={iso3}
                   fill={fillColor}
                   stroke="#ffffff"
                   strokeWidth={0.5}
