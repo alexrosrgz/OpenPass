@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect, memo } from "react"
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, memo } from "react"
 import {
   ComposableMap,
   Geographies,
@@ -47,6 +47,29 @@ const WorldMapInner = memo(function WorldMapInner({
   const MIN_ZOOM = 1
   const MAX_ZOOM = 8
   const containerRef = useRef<HTMLDivElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
+
+  const toLocal = useCallback((clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    return { x: clientX - rect.left + 12, y: clientY - rect.top - 12 }
+  }, [])
+
+  useLayoutEffect(() => {
+    const tip = tooltipRef.current
+    const box = containerRef.current
+    if (!tip || !box || !tooltip) return
+    const tRect = tip.getBoundingClientRect()
+    const bRect = box.getBoundingClientRect()
+    const pad = 8
+    let { x, y } = tooltip
+    if (x + tRect.width > bRect.width - pad) x = bRect.width - tRect.width - pad
+    if (y + tRect.height > bRect.height - pad) y = bRect.height - tRect.height - pad
+    if (x < pad) x = pad
+    if (y < pad) y = pad
+    tip.style.left = `${x}px`
+    tip.style.top = `${y}px`
+  }, [tooltip])
 
   const clampPan = useCallback((x: number, y: number, z: number) => {
     const basePanX = 120
@@ -170,7 +193,8 @@ const WorldMapInner = memo(function WorldMapInner({
             : iso3 === passportCode
             ? "Your passport"
             : "No data"
-          setTooltip({ name, requirement: reqLabel, color: fillColor, x: e.clientX, y: e.clientY })
+          const pos = toLocal(e.clientX, e.clientY)
+          setTooltip({ name, requirement: reqLabel, color: fillColor, x: pos.x, y: pos.y })
         } else {
           setTooltip(null)
         }
@@ -263,12 +287,13 @@ const WorldMapInner = memo(function WorldMapInner({
                       : iso3 === passportCode
                       ? "Your passport"
                       : "No data"
+                    const pos = toLocal(evt.clientX, evt.clientY)
                     setTooltip({
                       name,
                       requirement: reqLabel,
                       color: fillColor,
-                      x: evt.clientX,
-                      y: evt.clientY,
+                      x: pos.x,
+                      y: pos.y,
                     })
                   }}
                   onPointerLeave={(evt) => { if (evt.pointerType === "mouse") setTooltip(null) }}
@@ -287,10 +312,11 @@ const WorldMapInner = memo(function WorldMapInner({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="pointer-events-none fixed z-50 rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-sm"
+            ref={tooltipRef}
+            className="pointer-events-none absolute z-50 rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-sm"
             style={{
-              left: tooltip.x + 12,
-              top: tooltip.y - 12,
+              left: tooltip.x,
+              top: tooltip.y,
             }}
           >
             <div className="flex items-center gap-2">

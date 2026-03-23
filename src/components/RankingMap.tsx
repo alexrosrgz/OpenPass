@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect, memo } from "react"
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, memo } from "react"
 import {
   ComposableMap,
   Geographies,
@@ -50,6 +50,29 @@ const RankingMapInner = memo(function RankingMapInner({
 
   const MIN_ZOOM = 1
   const MAX_ZOOM = 8
+  const tooltipRef = useRef<HTMLDivElement>(null)
+
+  const toLocal = useCallback((clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    return { x: clientX - rect.left + 12, y: clientY - rect.top - 12 }
+  }, [])
+
+  useLayoutEffect(() => {
+    const tip = tooltipRef.current
+    const box = containerRef.current
+    if (!tip || !box || !tooltip) return
+    const tRect = tip.getBoundingClientRect()
+    const bRect = box.getBoundingClientRect()
+    const pad = 8
+    let { x, y } = tooltip
+    if (x + tRect.width > bRect.width - pad) x = bRect.width - tRect.width - pad
+    if (y + tRect.height > bRect.height - pad) y = bRect.height - tRect.height - pad
+    if (x < pad) x = pad
+    if (y < pad) y = pad
+    tip.style.left = `${x}px`
+    tip.style.top = `${y}px`
+  }, [tooltip])
 
   const clampPan = useCallback((x: number, y: number, z: number) => {
     const basePanX = 250
@@ -166,13 +189,14 @@ const RankingMapInner = memo(function RankingMapInner({
           const data = passportMap.get(iso3)
           const fillColor = data ? scoreToColor(data.score, maxScore) : "#e5e5e5"
           const name = countries[iso3]?.name || data?.name || iso3
+          const pos = toLocal(e.clientX, e.clientY)
           setTooltip({
             name,
             rank: data?.rank || 0,
             score: data?.score || 0,
             color: fillColor,
-            x: e.clientX,
-            y: e.clientY,
+            x: pos.x,
+            y: pos.y,
           })
         } else {
           setTooltip(null)
@@ -250,13 +274,14 @@ const RankingMapInner = memo(function RankingMapInner({
                   onPointerEnter={(evt) => {
                     if (evt.pointerType !== "mouse") return
                     const name = countries[iso3]?.name || data?.name || geoName || "Unknown"
+                    const pos = toLocal(evt.clientX, evt.clientY)
                     setTooltip({
                       name,
                       rank: data?.rank || 0,
                       score: data?.score || 0,
                       color: fillColor,
-                      x: evt.clientX,
-                      y: evt.clientY,
+                      x: pos.x,
+                      y: pos.y,
                     })
                   }}
                   onPointerLeave={(evt) => { if (evt.pointerType === "mouse") setTooltip(null) }}
@@ -275,10 +300,11 @@ const RankingMapInner = memo(function RankingMapInner({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="pointer-events-none fixed z-50 rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-sm"
+            ref={tooltipRef}
+            className="pointer-events-none absolute z-50 rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-sm"
             style={{
-              left: tooltip.x + 12,
-              top: tooltip.y - 12,
+              left: tooltip.x,
+              top: tooltip.y,
             }}
           >
             <div className="flex items-center gap-2">
