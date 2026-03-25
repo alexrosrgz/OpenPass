@@ -125,6 +125,8 @@ const RankingMapInner = memo(function RankingMapInner({
     [createTooltipContent, externallyHoveredIso3, nativeTooltip]
   )
 
+  const outlinedIso3 = externallyHoveredIso3 ?? nativeTooltip?.iso3 ?? null
+
   useLayoutEffect(() => {
     const tip = tooltipRef.current
     const box = containerRef.current
@@ -345,11 +347,11 @@ const RankingMapInner = memo(function RankingMapInner({
         <Geographies geography={geoData}>
           {({ geographies }) => {
             const hoveredGeography =
-              externallyHoveredIso3 === null
+              outlinedIso3 === null
                 ? null
                 : geographies.find((geo) => {
                     const geoId = String(geo.id ?? "")
-                    return NUMERIC_TO_ISO3[geoId] === externallyHoveredIso3
+                    return NUMERIC_TO_ISO3[geoId] === outlinedIso3
                   })
 
             return (
@@ -404,7 +406,7 @@ const RankingMapInner = memo(function RankingMapInner({
             })}
             {hoveredGeography && (
               <Geography
-                key={`hover-outline-${externallyHoveredIso3}`}
+                key={`hover-outline-${outlinedIso3}`}
                 geography={hoveredGeography}
                 fill="none"
                 pointerEvents="none"
