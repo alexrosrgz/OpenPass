@@ -1,6 +1,14 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect, useLayoutEffect, memo } from "react"
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  memo,
+} from "react"
 import {
   ComposableMap,
   Geographies,
@@ -10,9 +18,42 @@ import { motion, AnimatePresence } from "framer-motion"
 import type { VisaRequirement } from "@/lib/types"
 import { REQUIREMENT_CONFIG } from "@/lib/constants"
 import { NUMERIC_TO_ISO3 } from "@/lib/geo"
+import { findVisibleCountryAnchor } from "@/lib/mapTooltipAnchor"
+import type { Topology } from "topojson-specification"
 import { MapControls } from "./MapControls"
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const geoData: any = require("world-atlas/countries-110m.json")
+import geoDataJson from "world-atlas/countries-110m.json"
+
+const MIN_ZOOM = 1
+const MAX_ZOOM = 8
+const HOVER_OUTLINE_COLOR = "#000000"
+const HOVER_OUTLINE_OPACITY = 1
+const HOVER_OUTLINE_WIDTH = 1
+const geoData = geoDataJson as unknown as Topology
+
+interface TooltipState {
+  iso3: string
+  name: string
+  requirement: string
+  color: string
+  anchor:
+    | { type: "pointer"; clientX: number; clientY: number }
+    | { type: "country"; iso3: string }
+}
+
+function getRequirementLabel(
+  requirement: VisaRequirement | undefined,
+  iso3: string,
+  passportCode: string
+) {
+  if (requirement) {
+    return (
+      REQUIREMENT_CONFIG[requirement.requirement].label +
+      (requirement.days ? ` (${requirement.days} days)` : "")
+    )
+  }
+
+  return iso3 === passportCode ? "Your passport" : "No data"
+}
 
 interface WorldMapProps {
   requirements: VisaRequirement[]
@@ -20,6 +61,7 @@ interface WorldMapProps {
   countries: Record<string, { name: string; iso3: string }>
   showHint?: boolean
   showControls?: boolean
+  externallyHoveredIso3?: string | null
 }
 
 const WorldMapInner = memo(function WorldMapInner({
@@ -28,24 +70,18 @@ const WorldMapInner = memo(function WorldMapInner({
   countries,
   showHint = true,
   showControls = true,
+  externallyHoveredIso3 = null,
 }: WorldMapProps) {
-  const [tooltip, setTooltip] = useState<{
-    name: string
-    requirement: string
-    color: string
-    x: number
-    y: number
-  } | null>(null)
+  const [nativeTooltip, setNativeTooltip] = useState<TooltipState | null>(null)
 
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
+  const [containerVersion, setContainerVersion] = useState(0)
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
   const wasDrag = useRef(false)
   const activePointers = useRef(new Set<number>())
 
-  const MIN_ZOOM = 1
-  const MAX_ZOOM = 8
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
 
@@ -55,21 +91,84 @@ const WorldMapInner = memo(function WorldMapInner({
     return { x: clientX - rect.left + 12, y: clientY - rect.top - 12 }
   }, [])
 
+  const requirementByDestination = useMemo(() => {
+    const nextRequirements = new Map<string, VisaRequirement>()
+    for (const requirement of requirements) {
+      nextRequirements.set(requirement.destination, requirement)
+    }
+    return nextRequirements
+  }, [requirements])
+
+  const getColor = useCallback(
+    (iso3: string): string => {
+      if (iso3 === passportCode) return "#3b82f6"
+
+      const requirement = requirementByDestination.get(iso3)
+      if (!requirement) return "#e5e5e5"
+
+      return REQUIREMENT_CONFIG[requirement.requirement].mapColor
+    },
+    [passportCode, requirementByDestination]
+  )
+
+  const createTooltipContent = useCallback(
+    (iso3: string): Omit<TooltipState, "anchor"> => {
+      const requirement = requirementByDestination.get(iso3)
+
+      return {
+        iso3,
+        name: countries[iso3]?.name || iso3,
+        requirement: getRequirementLabel(requirement, iso3, passportCode),
+        color: getColor(iso3),
+      }
+    },
+    [countries, getColor, passportCode, requirementByDestination]
+  )
+
+  const tooltip = useMemo(
+    () =>
+      externallyHoveredIso3 !== null
+        ? {
+            ...createTooltipContent(externallyHoveredIso3),
+            anchor: {
+              type: "country" as const,
+              iso3: externallyHoveredIso3,
+            },
+          }
+        : nativeTooltip,
+    [createTooltipContent, externallyHoveredIso3, nativeTooltip]
+  )
+
   useLayoutEffect(() => {
     const tip = tooltipRef.current
     const box = containerRef.current
     if (!tip || !box || !tooltip) return
+
+    const anchor =
+      tooltip.anchor.type === "country"
+        ? findVisibleCountryAnchor(box, tooltip.anchor.iso3)
+        : {
+            clientX: tooltip.anchor.clientX,
+            clientY: tooltip.anchor.clientY,
+          }
+
+    if (!anchor) {
+      tip.style.visibility = "hidden"
+      return
+    }
+
     const tRect = tip.getBoundingClientRect()
     const bRect = box.getBoundingClientRect()
     const pad = 8
-    let { x, y } = tooltip
+    let { x, y } = toLocal(anchor.clientX, anchor.clientY)
     if (x + tRect.width > bRect.width - pad) x = bRect.width - tRect.width - pad
     if (y + tRect.height > bRect.height - pad) y = bRect.height - tRect.height - pad
     if (x < pad) x = pad
     if (y < pad) y = pad
     tip.style.left = `${x}px`
     tip.style.top = `${y}px`
-  }, [tooltip])
+    tip.style.visibility = "visible"
+  }, [containerVersion, pan, toLocal, tooltip, zoom])
 
   const clampPan = useCallback((x: number, y: number, z: number) => {
     const basePanX = 120
@@ -87,7 +186,7 @@ const WorldMapInner = memo(function WorldMapInner({
   }, [])
 
   useEffect(() => {
-    const dismiss = () => setTooltip(null)
+    const dismiss = () => setNativeTooltip(null)
     window.addEventListener("scroll", dismiss, { passive: true })
     document.addEventListener("touchstart", dismiss, { passive: true })
     return () => {
@@ -95,6 +194,33 @@ const WorldMapInner = memo(function WorldMapInner({
       document.removeEventListener("touchstart", dismiss)
     }
   }, [])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || typeof ResizeObserver === "undefined") {
+      return
+    }
+
+    const observer = new ResizeObserver(() => {
+      setContainerVersion((version) => version + 1)
+    })
+
+    observer.observe(container)
+
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!externallyHoveredIso3) {
+      return
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setNativeTooltip(null)
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [externallyHoveredIso3])
 
   useEffect(() => {
     const el = containerRef.current
@@ -158,7 +284,7 @@ const WorldMapInner = memo(function WorldMapInner({
       // Second finger — cancel drag, let pinch handle it
       setDragging(false)
       wasDrag.current = true
-      setTooltip(null)
+      setNativeTooltip(null)
     }
   }, [pan])
 
@@ -168,7 +294,7 @@ const WorldMapInner = memo(function WorldMapInner({
     const dy = e.clientY - dragStart.current.y
     if (!wasDrag.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
       wasDrag.current = true
-      setTooltip(null)
+      setNativeTooltip(null)
     }
     const rawX = dragStart.current.panX + dx / zoom
     const rawY = dragStart.current.panY + dy / zoom
@@ -179,28 +305,25 @@ const WorldMapInner = memo(function WorldMapInner({
     activePointers.current.delete(e.pointerId)
     if (activePointers.current.size === 0) {
       setDragging(false)
-      if (!wasDrag.current) {
+      if (!wasDrag.current && !externallyHoveredIso3) {
         const el = document.elementFromPoint(e.clientX, e.clientY)
         const path = el?.closest("[data-iso3]")
         const iso3 = path?.getAttribute("data-iso3")
         if (iso3) {
-          const req = reqMap.get(iso3)
-          const fillColor = getColor(iso3)
-          const name = countries[iso3]?.name || iso3
-          const reqLabel = req
-            ? REQUIREMENT_CONFIG[req.requirement].label +
-              (req.days ? ` (${req.days} days)` : "")
-            : iso3 === passportCode
-            ? "Your passport"
-            : "No data"
-          const pos = toLocal(e.clientX, e.clientY)
-          setTooltip({ name, requirement: reqLabel, color: fillColor, x: pos.x, y: pos.y })
+          setNativeTooltip({
+            ...createTooltipContent(iso3),
+            anchor: {
+              type: "pointer",
+              clientX: e.clientX,
+              clientY: e.clientY,
+            },
+          })
         } else {
-          setTooltip(null)
+          setNativeTooltip(null)
         }
       }
     }
-  }, [countries, passportCode])
+  }, [createTooltipContent, externallyHoveredIso3])
 
   const handleZoomIn = useCallback(() => {
     setZoom((z) => Math.min(MAX_ZOOM, z * 1.3))
@@ -214,25 +337,12 @@ const WorldMapInner = memo(function WorldMapInner({
     })
   }, [clampPan])
 
-  // Build lookup: ISO3 → requirement
-  const reqMap = new Map<string, VisaRequirement>()
-  for (const r of requirements) {
-    reqMap.set(r.destination, r)
-  }
-
-  const getColor = (iso3: string): string => {
-    if (iso3 === passportCode) return "#3b82f6" // passport's own country — blue
-    const req = reqMap.get(iso3)
-    if (!req) return "#e5e5e5"
-    return REQUIREMENT_CONFIG[req.requirement].mapColor
-  }
-
   return (
     <div
       ref={containerRef}
       className="relative w-full select-none overflow-hidden"
       style={{ cursor: dragging ? "grabbing" : "grab", height: "100%", touchAction: "none" }}
-      onPointerLeave={() => { setTooltip(null); setDragging(false); activePointers.current.clear() }}
+      onPointerLeave={() => { setNativeTooltip(null); setDragging(false); activePointers.current.clear() }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -250,11 +360,21 @@ const WorldMapInner = memo(function WorldMapInner({
       >
         <g transform={`translate(${500 + pan.x * zoom}, ${258 + pan.y * zoom}) scale(${zoom}) translate(-500, -250)`}>
         <Geographies geography={geoData}>
-          {({ geographies }) =>
-            geographies.map((geo) => {
+          {({ geographies }) => {
+            const hoveredGeography =
+              externallyHoveredIso3 === null
+                ? null
+                : geographies.find((geo) => {
+                    const geoId = String(geo.id ?? "")
+                    return NUMERIC_TO_ISO3[geoId] === externallyHoveredIso3
+                  })
+
+            return (
+              <>
+            {geographies.map((geo) => {
               const geoId = String(geo.id ?? "")
               const iso3 = NUMERIC_TO_ISO3[geoId] || ""
-              const req = reqMap.get(iso3)
+              const requirement = requirementByDestination.get(iso3)
               const fillColor = getColor(iso3)
               const geoName =
                 (geo.properties as Record<string, string>)?.name || ""
@@ -278,29 +398,51 @@ const WorldMapInner = memo(function WorldMapInner({
                     pressed: { outline: "none" },
                   }}
                   onPointerEnter={(evt) => {
-                    if (evt.pointerType !== "mouse") return
-                    const name =
-                      countries[iso3]?.name || geoName || "Unknown"
-                    const reqLabel = req
-                      ? REQUIREMENT_CONFIG[req.requirement].label +
-                        (req.days ? ` (${req.days} days)` : "")
-                      : iso3 === passportCode
-                      ? "Your passport"
-                      : "No data"
-                    const pos = toLocal(evt.clientX, evt.clientY)
-                    setTooltip({
-                      name,
-                      requirement: reqLabel,
+                    if (evt.pointerType !== "mouse" || externallyHoveredIso3) return
+                    setNativeTooltip({
+                      iso3,
+                      name: countries[iso3]?.name || geoName || "Unknown",
+                      requirement: getRequirementLabel(
+                        requirement,
+                        iso3,
+                        passportCode
+                      ),
                       color: fillColor,
-                      x: pos.x,
-                      y: pos.y,
+                      anchor: {
+                        type: "pointer",
+                        clientX: evt.clientX,
+                        clientY: evt.clientY,
+                      },
                     })
                   }}
-                  onPointerLeave={(evt) => { if (evt.pointerType === "mouse") setTooltip(null) }}
+                  onPointerLeave={(evt) => {
+                    if (evt.pointerType === "mouse") setNativeTooltip(null)
+                  }}
                 />
               )
-            })
-          }
+            })}
+            {hoveredGeography && (
+              <Geography
+                key={`hover-outline-${externallyHoveredIso3}`}
+                geography={hoveredGeography}
+                fill="none"
+                pointerEvents="none"
+                stroke={HOVER_OUTLINE_COLOR}
+                strokeOpacity={HOVER_OUTLINE_OPACITY}
+                strokeWidth={HOVER_OUTLINE_WIDTH}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+                style={{
+                  default: { outline: "none" },
+                  hover: { outline: "none" },
+                  pressed: { outline: "none" },
+                }}
+              />
+            )}
+              </>
+            )
+          }}
         </Geographies>
         </g>
       </ComposableMap>
@@ -314,10 +456,7 @@ const WorldMapInner = memo(function WorldMapInner({
             transition={{ duration: 0.15 }}
             ref={tooltipRef}
             className="pointer-events-none absolute z-50 rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-sm"
-            style={{
-              left: tooltip.x,
-              top: tooltip.y,
-            }}
+            style={{ visibility: "hidden" }}
           >
             <div className="flex items-center gap-2">
               <div

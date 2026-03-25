@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import type { PassportSummary, Country } from "@/lib/types"
+import { cn } from "@/lib/utils"
 import { CountryFlag } from "./CountryFlag"
 import { RankingMap, scoreToColor } from "./RankingMap"
 import { ScoreTooltip } from "./ScoreTooltip"
@@ -18,6 +19,7 @@ interface RankingClientProps {
 
 export function RankingClient({ passports, countriesMap }: RankingClientProps) {
   const [search, setSearch] = useState("")
+  const [hoveredIso3, setHoveredIso3] = useState<string | null>(null)
 
   const filtered = search.trim()
     ? passports.filter((p) =>
@@ -39,7 +41,10 @@ export function RankingClient({ passports, countriesMap }: RankingClientProps) {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setHoveredIso3(null)
+              }}
               placeholder="Filter by country..."
               className="mt-3 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-900 placeholder-neutral-500 outline-none transition-all focus:border-neutral-300 focus:bg-white"
             />
@@ -58,7 +63,16 @@ export function RankingClient({ passports, countriesMap }: RankingClientProps) {
               <Link
                 key={passport.code}
                 href={`/?passport=${passport.code}`}
-                className="grid grid-cols-[36px_1fr_48px_60px] md:grid-cols-[44px_1fr_56px_72px] items-center gap-2 border-b border-neutral-100 px-5 py-2.5 transition-colors hover:bg-neutral-50"
+                onMouseEnter={() => setHoveredIso3(passport.code)}
+                onMouseLeave={() => setHoveredIso3(null)}
+                onFocus={() => setHoveredIso3(passport.code)}
+                onBlur={() => setHoveredIso3(null)}
+                className={cn(
+                  "grid grid-cols-[36px_1fr_48px_60px] md:grid-cols-[44px_1fr_56px_72px] items-center gap-2 border-b border-neutral-100 px-5 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-300",
+                  hoveredIso3 === passport.code
+                    ? "bg-neutral-50"
+                    : "hover:bg-neutral-50"
+                )}
               >
                 <div className="text-xs font-medium text-neutral-500">
                   #{passport.rank}
@@ -90,7 +104,11 @@ export function RankingClient({ passports, countriesMap }: RankingClientProps) {
 
       {/* Right: map (mobile: top; desktop: right side) */}
       <div className="relative order-1 h-[250px] overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 md:order-2 md:h-auto md:flex-1">
-        <RankingMap passports={passports} countries={countriesMap} />
+        <RankingMap
+          passports={passports}
+          countries={countriesMap}
+          externallyHoveredIso3={hoveredIso3}
+        />
         <div className="absolute bottom-[1rem] left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white/90 px-3 py-2 text-[10px] font-medium text-neutral-600 backdrop-blur-sm">
           <span>Low</span>
           {["#ef4444", "#f97316", "#fbbf24", "#34d399", "#059669"].map((c) => (

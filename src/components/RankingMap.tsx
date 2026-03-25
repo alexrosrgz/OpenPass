@@ -1,6 +1,14 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect, useLayoutEffect, memo } from "react"
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  memo,
+} from "react"
 import {
   ComposableMap,
   Geographies,
@@ -8,13 +16,33 @@ import {
 } from "@vnedyalk0v/react19-simple-maps"
 import { motion, AnimatePresence } from "framer-motion"
 import { NUMERIC_TO_ISO3 } from "@/lib/geo"
+import { findVisibleCountryAnchor } from "@/lib/mapTooltipAnchor"
+import type { Topology } from "topojson-specification"
 import { MapControls } from "./MapControls"
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const geoData: any = require("world-atlas/countries-110m.json")
+import geoDataJson from "world-atlas/countries-110m.json"
+
+const MIN_ZOOM = 1
+const MAX_ZOOM = 8
+const HOVER_OUTLINE_COLOR = "#000000"
+const HOVER_OUTLINE_OPACITY = 1
+const HOVER_OUTLINE_WIDTH = 1
+const geoData = geoDataJson as unknown as Topology
+
+interface TooltipState {
+  iso3: string
+  name: string
+  rank: number
+  score: number
+  color: string
+  anchor:
+    | { type: "pointer"; clientX: number; clientY: number }
+    | { type: "country"; iso3: string }
+}
 
 interface RankingMapProps {
   passports: { code: string; name: string; score: number; rank: number }[]
   countries: Record<string, { name: string; iso3: string }>
+  externallyHoveredIso3?: string | null
 }
 
 export function scoreToColor(score: number, maxScore: number): string {
@@ -30,26 +58,19 @@ export function scoreToColor(score: number, maxScore: number): string {
 const RankingMapInner = memo(function RankingMapInner({
   passports,
   countries,
+  externallyHoveredIso3 = null,
 }: RankingMapProps) {
-  const [tooltip, setTooltip] = useState<{
-    name: string
-    rank: number
-    score: number
-    color: string
-    x: number
-    y: number
-  } | null>(null)
+  const [nativeTooltip, setNativeTooltip] = useState<TooltipState | null>(null)
 
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
+  const [containerVersion, setContainerVersion] = useState(0)
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
   const wasDrag = useRef(false)
   const activePointers = useRef(new Set<number>())
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const MIN_ZOOM = 1
-  const MAX_ZOOM = 8
   const tooltipRef = useRef<HTMLDivElement>(null)
 
   const toLocal = useCallback((clientX: number, clientY: number) => {
@@ -58,21 +79,82 @@ const RankingMapInner = memo(function RankingMapInner({
     return { x: clientX - rect.left + 12, y: clientY - rect.top - 12 }
   }, [])
 
+  const passportMap = useMemo(() => {
+    const nextPassports = new Map<
+      string,
+      { rank: number; score: number; name: string }
+    >()
+    for (const passport of passports) {
+      nextPassports.set(passport.code, {
+        rank: passport.rank,
+        score: passport.score,
+        name: passport.name,
+      })
+    }
+    return nextPassports
+  }, [passports])
+
+  const maxScore = passports.length > 0 ? passports[0].score : 1
+
+  const createTooltipContent = useCallback(
+    (iso3: string): Omit<TooltipState, "anchor"> => {
+      const passport = passportMap.get(iso3)
+
+      return {
+        iso3,
+        name: countries[iso3]?.name || passport?.name || iso3,
+        rank: passport?.rank || 0,
+        score: passport?.score || 0,
+        color: passport ? scoreToColor(passport.score, maxScore) : "#e5e5e5",
+      }
+    },
+    [countries, maxScore, passportMap]
+  )
+
+  const tooltip = useMemo(
+    () =>
+      externallyHoveredIso3 !== null
+        ? {
+            ...createTooltipContent(externallyHoveredIso3),
+            anchor: {
+              type: "country" as const,
+              iso3: externallyHoveredIso3,
+            },
+          }
+        : nativeTooltip,
+    [createTooltipContent, externallyHoveredIso3, nativeTooltip]
+  )
+
   useLayoutEffect(() => {
     const tip = tooltipRef.current
     const box = containerRef.current
     if (!tip || !box || !tooltip) return
+
+    const anchor =
+      tooltip.anchor.type === "country"
+        ? findVisibleCountryAnchor(box, tooltip.anchor.iso3)
+        : {
+            clientX: tooltip.anchor.clientX,
+            clientY: tooltip.anchor.clientY,
+          }
+
+    if (!anchor) {
+      tip.style.visibility = "hidden"
+      return
+    }
+
     const tRect = tip.getBoundingClientRect()
     const bRect = box.getBoundingClientRect()
     const pad = 8
-    let { x, y } = tooltip
+    let { x, y } = toLocal(anchor.clientX, anchor.clientY)
     if (x + tRect.width > bRect.width - pad) x = bRect.width - tRect.width - pad
     if (y + tRect.height > bRect.height - pad) y = bRect.height - tRect.height - pad
     if (x < pad) x = pad
     if (y < pad) y = pad
     tip.style.left = `${x}px`
     tip.style.top = `${y}px`
-  }, [tooltip])
+    tip.style.visibility = "visible"
+  }, [containerVersion, pan, toLocal, tooltip, zoom])
 
   const clampPan = useCallback((x: number, y: number, z: number) => {
     const basePanX = 250
@@ -90,7 +172,7 @@ const RankingMapInner = memo(function RankingMapInner({
   }, [])
 
   useEffect(() => {
-    const dismiss = () => setTooltip(null)
+    const dismiss = () => setNativeTooltip(null)
     window.addEventListener("scroll", dismiss, { passive: true })
     document.addEventListener("touchstart", dismiss, { passive: true })
     return () => {
@@ -98,6 +180,33 @@ const RankingMapInner = memo(function RankingMapInner({
       document.removeEventListener("touchstart", dismiss)
     }
   }, [])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || typeof ResizeObserver === "undefined") {
+      return
+    }
+
+    const observer = new ResizeObserver(() => {
+      setContainerVersion((version) => version + 1)
+    })
+
+    observer.observe(container)
+
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!externallyHoveredIso3) {
+      return
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setNativeTooltip(null)
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [externallyHoveredIso3])
 
   useEffect(() => {
     const el = containerRef.current
@@ -160,7 +269,7 @@ const RankingMapInner = memo(function RankingMapInner({
     } else {
       setDragging(false)
       wasDrag.current = true
-      setTooltip(null)
+      setNativeTooltip(null)
     }
   }, [pan])
 
@@ -170,7 +279,7 @@ const RankingMapInner = memo(function RankingMapInner({
     const dy = e.clientY - dragStart.current.y
     if (!wasDrag.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
       wasDrag.current = true
-      setTooltip(null)
+      setNativeTooltip(null)
     }
     const rawX = dragStart.current.panX + dx / zoom
     const rawY = dragStart.current.panY + dy / zoom
@@ -181,29 +290,25 @@ const RankingMapInner = memo(function RankingMapInner({
     activePointers.current.delete(e.pointerId)
     if (activePointers.current.size === 0) {
       setDragging(false)
-      if (!wasDrag.current) {
+      if (!wasDrag.current && !externallyHoveredIso3) {
         const el = document.elementFromPoint(e.clientX, e.clientY)
         const path = el?.closest("[data-iso3]")
         const iso3 = path?.getAttribute("data-iso3")
         if (iso3) {
-          const data = passportMap.get(iso3)
-          const fillColor = data ? scoreToColor(data.score, maxScore) : "#e5e5e5"
-          const name = countries[iso3]?.name || data?.name || iso3
-          const pos = toLocal(e.clientX, e.clientY)
-          setTooltip({
-            name,
-            rank: data?.rank || 0,
-            score: data?.score || 0,
-            color: fillColor,
-            x: pos.x,
-            y: pos.y,
+          setNativeTooltip({
+            ...createTooltipContent(iso3),
+            anchor: {
+              type: "pointer",
+              clientX: e.clientX,
+              clientY: e.clientY,
+            },
           })
         } else {
-          setTooltip(null)
+          setNativeTooltip(null)
         }
       }
     }
-  }, [countries, passports])
+  }, [createTooltipContent, externallyHoveredIso3])
 
   const handleZoomIn = useCallback(() => {
     setZoom((z) => Math.min(MAX_ZOOM, z * 1.3))
@@ -217,19 +322,12 @@ const RankingMapInner = memo(function RankingMapInner({
     })
   }, [clampPan])
 
-  const passportMap = new Map<string, { rank: number; score: number; name: string }>()
-  for (const p of passports) {
-    passportMap.set(p.code, { rank: p.rank, score: p.score, name: p.name })
-  }
-
-  const maxScore = passports.length > 0 ? passports[0].score : 1
-
   return (
     <div
       ref={containerRef}
       className="relative flex h-full w-full select-none items-center justify-center overflow-hidden"
       style={{ cursor: dragging ? "grabbing" : "grab", touchAction: "none" }}
-      onPointerLeave={() => { setTooltip(null); setDragging(false); activePointers.current.clear() }}
+      onPointerLeave={() => { setNativeTooltip(null); setDragging(false); activePointers.current.clear() }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -245,12 +343,24 @@ const RankingMapInner = memo(function RankingMapInner({
       >
         <g transform={`translate(${500 + pan.x * zoom}, ${280 + pan.y * zoom}) scale(${zoom}) translate(-500, -250)`}>
         <Geographies geography={geoData}>
-          {({ geographies }) =>
-            geographies.map((geo) => {
+          {({ geographies }) => {
+            const hoveredGeography =
+              externallyHoveredIso3 === null
+                ? null
+                : geographies.find((geo) => {
+                    const geoId = String(geo.id ?? "")
+                    return NUMERIC_TO_ISO3[geoId] === externallyHoveredIso3
+                  })
+
+            return (
+              <>
+            {geographies.map((geo) => {
               const geoId = String(geo.id ?? "")
               const iso3 = NUMERIC_TO_ISO3[geoId] || ""
-              const data = passportMap.get(iso3)
-              const fillColor = data ? scoreToColor(data.score, maxScore) : "#e5e5e5"
+              const passport = passportMap.get(iso3)
+              const fillColor = passport
+                ? scoreToColor(passport.score, maxScore)
+                : "#e5e5e5"
               const geoName = (geo.properties as Record<string, string>)?.name || ""
 
               return (
@@ -272,23 +382,48 @@ const RankingMapInner = memo(function RankingMapInner({
                     pressed: { outline: "none" },
                   }}
                   onPointerEnter={(evt) => {
-                    if (evt.pointerType !== "mouse") return
-                    const name = countries[iso3]?.name || data?.name || geoName || "Unknown"
-                    const pos = toLocal(evt.clientX, evt.clientY)
-                    setTooltip({
-                      name,
-                      rank: data?.rank || 0,
-                      score: data?.score || 0,
+                    if (evt.pointerType !== "mouse" || externallyHoveredIso3) return
+                    setNativeTooltip({
+                      iso3,
+                      name: countries[iso3]?.name || passport?.name || geoName || "Unknown",
+                      rank: passport?.rank || 0,
+                      score: passport?.score || 0,
                       color: fillColor,
-                      x: pos.x,
-                      y: pos.y,
+                      anchor: {
+                        type: "pointer",
+                        clientX: evt.clientX,
+                        clientY: evt.clientY,
+                      },
                     })
                   }}
-                  onPointerLeave={(evt) => { if (evt.pointerType === "mouse") setTooltip(null) }}
+                  onPointerLeave={(evt) => {
+                    if (evt.pointerType === "mouse") setNativeTooltip(null)
+                  }}
                 />
               )
-            })
-          }
+            })}
+            {hoveredGeography && (
+              <Geography
+                key={`hover-outline-${externallyHoveredIso3}`}
+                geography={hoveredGeography}
+                fill="none"
+                pointerEvents="none"
+                stroke={HOVER_OUTLINE_COLOR}
+                strokeOpacity={HOVER_OUTLINE_OPACITY}
+                strokeWidth={HOVER_OUTLINE_WIDTH}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+                style={{
+                  default: { outline: "none" },
+                  hover: { outline: "none" },
+                  pressed: { outline: "none" },
+                }}
+              />
+            )}
+              </>
+            )
+          }}
         </Geographies>
         </g>
       </ComposableMap>
@@ -302,10 +437,7 @@ const RankingMapInner = memo(function RankingMapInner({
             transition={{ duration: 0.15 }}
             ref={tooltipRef}
             className="pointer-events-none absolute z-50 rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-sm"
-            style={{
-              left: tooltip.x,
-              top: tooltip.y,
-            }}
+            style={{ visibility: "hidden" }}
           >
             <div className="flex items-center gap-2">
               <div
