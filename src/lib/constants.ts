@@ -5,7 +5,7 @@ export const REQUIREMENT_CONFIG: Record<
   { label: string; color: string; bgColor: string; mapColor: string }
 > = {
   "visa-free": {
-    label: "Visa Free",
+    label: "Visa-Free",
     color: "text-emerald-700",
     bgColor: "bg-emerald-100",
     mapColor: "#10b981",
