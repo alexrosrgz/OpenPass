@@ -30,18 +30,20 @@ export function CompareClient({ countries }: CompareClientProps) {
   const router = useRouter()
   const codeA = searchParams.get("a")?.toUpperCase() || ""
   const codeB = searchParams.get("b")?.toUpperCase() || ""
+  const hasComparison = Boolean(codeA && codeB)
 
   const [data, setData] = useState<CompareData | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!codeA || !codeB) {
-      setData(null)
-      return
-    }
+    if (!codeA || !codeB) return
 
     const controller = new AbortController()
-    setLoading(true)
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) {
+        setLoading(true)
+      }
+    })
 
     fetch(`/api/compare?a=${codeA}&b=${codeB}`, { signal: controller.signal })
       .then((res) => {
@@ -61,12 +63,8 @@ export function CompareClient({ countries }: CompareClientProps) {
 
   const countryA = countries.find((c) => c.iso3 === codeA)
   const countryB = countries.find((c) => c.iso3 === codeB)
-
-  const setPassport = (which: "a" | "b", code: string) => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set(which, code)
-    router.push(`/compare?${params.toString()}`)
-  }
+  const visibleData = hasComparison ? data : null
+  const showLoading = hasComparison && loading
 
   // Score comparison helpers
   const getReqColor = (req: VisaRequirement | null) => {
@@ -89,11 +87,11 @@ export function CompareClient({ countries }: CompareClientProps) {
             <div className="flex items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 md:px-6 md:py-5">
               <CountryFlag iso2={countryA.iso2} name={countryA.name} size={72} />
               <span className="flex-1 font-medium">{countryA.name}</span>
-              {data && (
+              {visibleData && (
                 <div className="flex flex-wrap items-center gap-2 text-sm md:gap-3">
                   <ScoreTooltip><span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Score</span></ScoreTooltip>
-                  <span className="text-lg font-bold text-emerald-600">{data.summaryA.score}</span>
-                  <span className="text-neutral-400">Rank #{data.summaryA.rank}</span>
+                  <span className="text-lg font-bold text-emerald-600">{visibleData.summaryA.score}</span>
+                  <span className="text-neutral-400">Rank #{visibleData.summaryA.rank}</span>
                 </div>
               )}
               <button
@@ -125,11 +123,11 @@ export function CompareClient({ countries }: CompareClientProps) {
             <div className="flex items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 md:px-6 md:py-5">
               <CountryFlag iso2={countryB.iso2} name={countryB.name} size={72} />
               <span className="flex-1 font-medium">{countryB.name}</span>
-              {data && (
+              {visibleData && (
                 <div className="flex flex-wrap items-center gap-2 text-sm md:gap-3">
                   <ScoreTooltip><span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">Score</span></ScoreTooltip>
-                  <span className="text-lg font-bold text-emerald-600">{data.summaryB.score}</span>
-                  <span className="text-neutral-400">Rank #{data.summaryB.rank}</span>
+                  <span className="text-lg font-bold text-emerald-600">{visibleData.summaryB.score}</span>
+                  <span className="text-neutral-400">Rank #{visibleData.summaryB.rank}</span>
                 </div>
               )}
               <button
@@ -158,27 +156,27 @@ export function CompareClient({ countries }: CompareClientProps) {
       </div>
 
       {/* Results */}
-      {loading && (
+      {showLoading && (
         <div className="mt-12 text-center text-neutral-700">Loading...</div>
       )}
 
-      {data && !loading && (
+      {visibleData && !showLoading && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
           className="mt-6"
         >
-          {data.summaryA.score !== data.summaryB.score && (
+          {visibleData.summaryA.score !== visibleData.summaryB.score && (
             <p className="mb-6 text-center text-neutral-600">
               <span className="font-semibold">
-                {data.summaryA.score > data.summaryB.score
-                  ? data.summaryA.name
-                  : data.summaryB.name}
+                {visibleData.summaryA.score > visibleData.summaryB.score
+                  ? visibleData.summaryA.name
+                  : visibleData.summaryB.name}
               </span>{" "}
               can visit{" "}
               <span className="font-semibold text-emerald-600">
-                {Math.abs(data.summaryA.score - data.summaryB.score)}
+                {Math.abs(visibleData.summaryA.score - visibleData.summaryB.score)}
               </span>{" "}
               more countries without a visa
             </p>
@@ -189,11 +187,11 @@ export function CompareClient({ countries }: CompareClientProps) {
             <div>
               <div className="relative overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50">
                 <WorldMap
-                  requirements={data.comparison
+                  requirements={visibleData.comparison
                     .filter((r) => r.requirementA)
                     .map((r) => r.requirementA!)}
                   passportCode={codeA}
-                  countries={data.countriesMap}
+                  countries={visibleData.countriesMap}
                   showHint={false}
                 />
               </div>
@@ -201,11 +199,11 @@ export function CompareClient({ countries }: CompareClientProps) {
             <div>
               <div className="relative overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50">
                 <WorldMap
-                  requirements={data.comparison
+                  requirements={visibleData.comparison
                     .filter((r) => r.requirementB)
                     .map((r) => r.requirementB!)}
                   passportCode={codeB}
-                  countries={data.countriesMap}
+                  countries={visibleData.countriesMap}
                   showHint={false}
                 />
               </div>
@@ -221,8 +219,8 @@ export function CompareClient({ countries }: CompareClientProps) {
             </div>
 
             <div>
-              {data.comparison.map((row) => {
-                const dest = data.countriesMap[row.destination]
+              {visibleData.comparison.map((row) => {
+                const dest = visibleData.countriesMap[row.destination]
                 return (
                   <div
                     key={row.destination}

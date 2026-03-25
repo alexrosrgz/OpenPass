@@ -7,7 +7,7 @@ import {
   getAllPassports,
 } from "@/lib/data"
 import type { Country, RequirementType } from "@/lib/types"
-import { REQUIREMENT_CONFIG, REQUIREMENT_ORDER } from "@/lib/constants"
+import { REQUIREMENT_CONFIG } from "@/lib/constants"
 import { CountryFlag } from "@/components/CountryFlag"
 import { DestinationClient } from "@/components/DestinationClient"
 import type { Metadata } from "next"
@@ -20,7 +20,7 @@ export async function generateMetadata({
   params,
 }: {
   params: Promise<{ code: string }>
-}) {
+}): Promise<Metadata> {
   const { code } = await params
   const country = getCountry(code.toUpperCase())
   return {

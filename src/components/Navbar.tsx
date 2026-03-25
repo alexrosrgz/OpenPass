@@ -1,17 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 export function Navbar() {
   const pathname = usePathname()
-  const [menuOpen, setMenuOpen] = useState(false)
-
-  // Close menu on route change
-  useEffect(() => {
-    setMenuOpen(false)
-  }, [pathname])
+  const [menuPathname, setMenuPathname] = useState<string | null>(null)
+  const menuOpen = menuPathname === pathname
 
   const isHome = pathname === "/"
   const isDestination = pathname.startsWith("/destination")
@@ -57,7 +53,7 @@ export function Navbar() {
             {links.find((l) => l.active)?.label}
           </span>
           <button
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={() => setMenuPathname(menuOpen ? null : pathname)}
             aria-label="Toggle menu"
           >
             <svg className="h-6 w-6 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -79,7 +75,7 @@ export function Navbar() {
               key={link.href}
               href={link.href}
               className={mobileLinkClass(link.active)}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => setMenuPathname(null)}
             >
               {link.label}
             </Link>

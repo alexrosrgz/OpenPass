@@ -31,7 +31,7 @@ export function PassportDetailClient(props: PassportDetailClientProps) {
     )
   }
 
-  const { score, requirements, passportCode, countriesMap } = props
+  const { requirements, passportCode, countriesMap } = props
 
   return (
     <RequirementGrid

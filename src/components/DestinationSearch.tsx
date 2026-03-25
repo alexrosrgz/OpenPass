@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import type { Country } from "@/lib/types"
 import { CountrySearch } from "./CountrySearch"
 import { CountryFlag } from "./CountryFlag"
@@ -13,7 +12,6 @@ interface DestinationSearchProps {
 
 export function DestinationSearch({ countries, showPassportPicker = false }: DestinationSearchProps) {
   const [selectedPassport, setSelectedPassport] = useState<Country | null>(null)
-  const router = useRouter()
 
   if (!showPassportPicker) {
     return (

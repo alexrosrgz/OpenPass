@@ -44,6 +44,7 @@ export function CountrySearch({
   const select = useCallback(
     (country: Country) => {
       setQuery("")
+      setSelectedIndex(0)
       setIsOpen(false)
       if (onSelect) {
         onSelect(country)
@@ -88,11 +89,6 @@ export function CountrySearch({
     }
   }, [selectedIndex])
 
-  // Reset selected index when query changes
-  useEffect(() => {
-    setSelectedIndex(0)
-  }, [query])
-
   return (
     <div className={`relative ${className}`}>
       <div className="relative">
@@ -102,6 +98,7 @@ export function CountrySearch({
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)
+            setSelectedIndex(0)
             setIsOpen(true)
           }}
           onFocus={() => setIsOpen(true)}
