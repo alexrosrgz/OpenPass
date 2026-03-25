@@ -19,6 +19,12 @@ import type { VisaRequirement } from "@/lib/types"
 import { REQUIREMENT_CONFIG } from "@/lib/constants"
 import { NUMERIC_TO_ISO3 } from "@/lib/geo"
 import {
+  getSvgViewportPoint,
+  getPinchZoomFactor,
+  getWheelZoomFactor,
+  zoomViewportAroundPoint,
+} from "@/lib/mapViewport"
+import {
   findCountryNearTapPoint,
   findVisibleCountryAnchor,
   getIso3AtPoint,
@@ -33,7 +39,14 @@ const MAX_ZOOM = 8
 const HOVER_OUTLINE_COLOR = "#000000"
 const HOVER_OUTLINE_OPACITY = 1
 const HOVER_OUTLINE_WIDTH = 1
+const WHEEL_GESTURE_IDLE_MS = 160
 const geoData = geoDataJson as unknown as Topology
+const MAP_TRANSFORM_ORIGIN = {
+  translateX: 500,
+  translateY: 258,
+  contentX: 500,
+  contentY: 250,
+} as const
 
 interface TooltipState {
   iso3: string
@@ -101,6 +114,12 @@ const WorldMapInner = memo(function WorldMapInner({
   const wasDrag = useRef(false)
   const activePointers = useRef(new Set<number>())
   const touchGesture = useRef<TouchGestureState | null>(null)
+  const wheelZoomGesture = useRef<{
+    viewportX: number
+    viewportY: number
+    timeoutId: number | null
+  } | null>(null)
+  const viewportRef = useRef({ zoom: 1, pan: { x: 0, y: 0 } })
 
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
@@ -176,6 +195,10 @@ const WorldMapInner = memo(function WorldMapInner({
   const outlinedIso3 = externallyHoveredIso3 ?? nativeTooltip?.iso3 ?? null
 
   useLayoutEffect(() => {
+    viewportRef.current = { zoom, pan }
+  }, [pan, zoom])
+
+  useLayoutEffect(() => {
     const tip = tooltipRef.current
     const box = containerRef.current
     if (!tip || !box || !tooltip) return
@@ -215,6 +238,44 @@ const WorldMapInner = memo(function WorldMapInner({
       y: Math.min(maxPanY, Math.max(-maxPanY, y)),
     }
   }, [])
+
+  const setViewport = useCallback((nextZoom: number, nextPan: { x: number; y: number }) => {
+    viewportRef.current = { zoom: nextZoom, pan: nextPan }
+    setZoom(nextZoom)
+    setPan(nextPan)
+  }, [])
+
+  const getViewportPoint = useCallback((clientX: number, clientY: number) => {
+    const svg = containerRef.current?.querySelector("svg") as SVGSVGElement | null
+    return getSvgViewportPoint(svg, clientX, clientY)
+  }, [])
+
+  const zoomAroundClientPoint = useCallback((
+    viewportX: number | null,
+    viewportY: number | null,
+    factor: number
+  ) => {
+    const nextViewport = zoomViewportAroundPoint({
+      viewportX,
+      viewportY,
+      factor,
+      viewport: viewportRef.current,
+      minZoom: MIN_ZOOM,
+      maxZoom: MAX_ZOOM,
+      transformOrigin: MAP_TRANSFORM_ORIGIN,
+      clampPan,
+    })
+
+    if (
+      nextViewport.zoom === viewportRef.current.zoom &&
+      nextViewport.pan.x === viewportRef.current.pan.x &&
+      nextViewport.pan.y === viewportRef.current.pan.y
+    ) {
+      return
+    }
+
+    setViewport(nextViewport.zoom, nextViewport.pan)
+  }, [clampPan, setViewport])
 
   const resetTouchGesture = useCallback(() => {
     touchGesture.current = null
@@ -267,12 +328,33 @@ const WorldMapInner = memo(function WorldMapInner({
     if (!el) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
-      const factor = e.deltaY > 0 ? 0.9 : 1.1
-      setZoom((prevZ) => {
-        const newZ = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prevZ * factor))
-        setPan((prevPan) => clampPan(prevPan.x, prevPan.y, newZ))
-        return newZ
-      })
+
+      const currentGesture = wheelZoomGesture.current
+      if (currentGesture?.timeoutId != null) {
+        window.clearTimeout(currentGesture.timeoutId)
+      }
+
+      if (!currentGesture) {
+        const viewportPoint = getViewportPoint(e.clientX, e.clientY)
+        if (!viewportPoint) {
+          return
+        }
+
+        wheelZoomGesture.current = {
+          viewportX: viewportPoint.x,
+          viewportY: viewportPoint.y,
+          timeoutId: null,
+        }
+      }
+
+      const factor = getWheelZoomFactor(e.deltaY, e.deltaMode)
+      const anchor = wheelZoomGesture.current
+      if (anchor) {
+        zoomAroundClientPoint(anchor.viewportX, anchor.viewportY, factor)
+        anchor.timeoutId = window.setTimeout(() => {
+          wheelZoomGesture.current = null
+        }, WHEEL_GESTURE_IDLE_MS)
+      }
     }
     let lastPinchDist = 0
     const onTouchStart = (e: TouchEvent) => {
@@ -300,12 +382,11 @@ const WorldMapInner = memo(function WorldMapInner({
         const dist = Math.hypot(dx, dy)
         if (lastPinchDist > 0) {
           const raw = dist / lastPinchDist
-          const factor = 1 + (raw - 1) * 0.4
-          setZoom((prevZ) => {
-            const newZ = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prevZ * factor))
-            setPan((prevPan) => clampPan(prevPan.x, prevPan.y, newZ))
-            return newZ
-          })
+          const factor = getPinchZoomFactor(raw)
+          const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+          const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+          const viewportPoint = getViewportPoint(centerX, centerY)
+          zoomAroundClientPoint(viewportPoint?.x ?? null, viewportPoint?.y ?? null, factor)
         }
         lastPinchDist = dist
       }
@@ -316,12 +397,16 @@ const WorldMapInner = memo(function WorldMapInner({
     el.addEventListener("touchmove", onTouchMove, { passive: false })
     el.addEventListener("touchend", onTouchEnd)
     return () => {
+      const gesture = wheelZoomGesture.current
+      if (gesture?.timeoutId != null) {
+        window.clearTimeout(gesture.timeoutId)
+      }
       el.removeEventListener("wheel", onWheel)
       el.removeEventListener("touchstart", onTouchStart)
       el.removeEventListener("touchmove", onTouchMove)
       el.removeEventListener("touchend", onTouchEnd)
     }
-  }, [clampPan])
+  }, [getViewportPoint, zoomAroundClientPoint])
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     activePointers.current.add(e.pointerId)
@@ -382,7 +467,9 @@ const WorldMapInner = memo(function WorldMapInner({
 
     const rawX = dragStart.current.panX + dx / zoom
     const rawY = dragStart.current.panY + dy / zoom
-    setPan(clampPan(rawX, rawY, zoom))
+    const nextPan = clampPan(rawX, rawY, zoom)
+    viewportRef.current = { zoom, pan: nextPan }
+    setPan(nextPan)
   }, [dragging, zoom, clampPan])
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -446,16 +533,24 @@ const WorldMapInner = memo(function WorldMapInner({
   }, [])
 
   const handleZoomIn = useCallback(() => {
-    setZoom((z) => Math.min(MAX_ZOOM, z * 1.3))
-  }, [])
+    const nextZoom = Math.min(MAX_ZOOM, viewportRef.current.zoom * 1.3)
+    const nextPan = clampPan(
+      viewportRef.current.pan.x,
+      viewportRef.current.pan.y,
+      nextZoom
+    )
+    setViewport(nextZoom, nextPan)
+  }, [clampPan, setViewport])
 
   const handleZoomOut = useCallback(() => {
-    setZoom((z) => {
-      const newZ = Math.max(MIN_ZOOM, z / 1.3)
-      setPan((p) => clampPan(p.x, p.y, newZ))
-      return newZ
-    })
-  }, [clampPan])
+    const nextZoom = Math.max(MIN_ZOOM, viewportRef.current.zoom / 1.3)
+    const nextPan = clampPan(
+      viewportRef.current.pan.x,
+      viewportRef.current.pan.y,
+      nextZoom
+    )
+    setViewport(nextZoom, nextPan)
+  }, [clampPan, setViewport])
 
   return (
     <div
