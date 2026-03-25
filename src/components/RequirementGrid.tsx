@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import type { VisaRequirement, Country } from "@/lib/types"
 import type { RequirementType } from "@/lib/types"
 import { REQUIREMENT_CONFIG, REQUIREMENT_ORDER } from "@/lib/constants"
+import { useMediaQuery } from "@/lib/useMediaQuery"
 import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CountryFlag } from "./CountryFlag"
@@ -22,6 +23,7 @@ export function RequirementGrid({
   passportCode,
 }: RequirementGridProps) {
   const [hoveredIso3, setHoveredIso3] = useState<string | null>(null)
+  const supportsListHover = useMediaQuery("(hover: hover) and (pointer: fine)")
 
   const grouped = new Map<RequirementType, VisaRequirement[]>()
   for (const type of REQUIREMENT_ORDER) {
@@ -79,7 +81,7 @@ export function RequirementGrid({
             requirements={requirements}
             passportCode={passportCode}
             countries={countries}
-            externallyHoveredIso3={hoveredIso3}
+            externallyHoveredIso3={supportsListHover ? hoveredIso3 : null}
           />
         </div>
 
@@ -109,16 +111,34 @@ export function RequirementGrid({
                             duration: 0.2,
                             delay: Math.min(i * 0.02, 0.5),
                           }}
-                          tabIndex={0}
-                          onMouseEnter={() => setHoveredIso3(req.destination)}
-                          onMouseLeave={() => setHoveredIso3(null)}
-                          onFocus={() => setHoveredIso3(req.destination)}
-                          onBlur={() => setHoveredIso3(null)}
+                          tabIndex={supportsListHover ? 0 : undefined}
+                          onMouseEnter={
+                            supportsListHover
+                              ? () => setHoveredIso3(req.destination)
+                              : undefined
+                          }
+                          onMouseLeave={
+                            supportsListHover
+                              ? () => setHoveredIso3(null)
+                              : undefined
+                          }
+                          onFocus={
+                            supportsListHover
+                              ? () => setHoveredIso3(req.destination)
+                              : undefined
+                          }
+                          onBlur={
+                            supportsListHover
+                              ? () => setHoveredIso3(null)
+                              : undefined
+                          }
                           className={cn(
                             "group flex items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300",
                             hoveredIso3 === req.destination
                               ? "border-neutral-900 bg-neutral-50 shadow-sm"
-                              : "hover:border-neutral-300 hover:bg-neutral-50"
+                              : supportsListHover
+                                ? "hover:border-neutral-300 hover:bg-neutral-50"
+                                : ""
                           )}
                         >
                           {country && (

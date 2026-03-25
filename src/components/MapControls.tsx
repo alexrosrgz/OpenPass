@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
 import { Plus, Minus } from "lucide-react"
+import { useMediaQuery } from "@/lib/useMediaQuery"
 
 interface MapControlsProps {
   onZoomIn: () => void
@@ -10,11 +10,7 @@ interface MapControlsProps {
 }
 
 export function MapControls({ onZoomIn, onZoomOut, showHint = true }: MapControlsProps) {
-  const [isTouch] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      window.matchMedia("(hover: none)").matches
-  )
+  const isTouch = useMediaQuery("(hover: none)")
 
   return (
     <>

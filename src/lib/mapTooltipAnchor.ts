@@ -1,4 +1,33 @@
 const SAMPLE_FRACTIONS = [0.5, 0.35, 0.65, 0.2, 0.8, 0.08, 0.92]
+export const TOUCH_TAP_TOLERANCE = 12
+
+const TAP_SAMPLE_OFFSETS = [
+  { dx: 0, dy: 0 },
+  { dx: -4, dy: 0 },
+  { dx: 4, dy: 0 },
+  { dx: 0, dy: -4 },
+  { dx: 0, dy: 4 },
+  { dx: -4, dy: -4 },
+  { dx: 4, dy: -4 },
+  { dx: -4, dy: 4 },
+  { dx: 4, dy: 4 },
+  { dx: -8, dy: 0 },
+  { dx: 8, dy: 0 },
+  { dx: 0, dy: -8 },
+  { dx: 0, dy: 8 },
+  { dx: -8, dy: -4 },
+  { dx: 8, dy: -4 },
+  { dx: -8, dy: 4 },
+  { dx: 8, dy: 4 },
+  { dx: -4, dy: -8 },
+  { dx: 4, dy: -8 },
+  { dx: -4, dy: 8 },
+  { dx: 4, dy: 8 },
+  { dx: -12, dy: 0 },
+  { dx: 12, dy: 0 },
+  { dx: 0, dy: -12 },
+  { dx: 0, dy: 12 },
+]
 
 const SAMPLE_POINTS = SAMPLE_FRACTIONS.flatMap((yFraction) =>
   SAMPLE_FRACTIONS
@@ -18,6 +47,34 @@ export interface CountryAnchorPoint {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
+}
+
+export function getIso3AtPoint(clientX: number, clientY: number): string | null {
+  return (
+    document
+      .elementFromPoint(clientX, clientY)
+      ?.closest("[data-iso3]")
+      ?.getAttribute("data-iso3") || null
+  )
+}
+
+export function findCountryNearTapPoint(
+  clientX: number,
+  clientY: number,
+  radius = TOUCH_TAP_TOLERANCE
+): string | null {
+  for (const offset of TAP_SAMPLE_OFFSETS) {
+    if (Math.hypot(offset.dx, offset.dy) > radius) {
+      continue
+    }
+
+    const iso3 = getIso3AtPoint(clientX + offset.dx, clientY + offset.dy)
+    if (iso3) {
+      return iso3
+    }
+  }
+
+  return null
 }
 
 export function findVisibleCountryAnchor(

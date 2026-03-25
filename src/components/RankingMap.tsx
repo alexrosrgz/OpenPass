@@ -16,7 +16,12 @@ import {
 } from "@vnedyalk0v/react19-simple-maps"
 import { motion, AnimatePresence } from "framer-motion"
 import { NUMERIC_TO_ISO3 } from "@/lib/geo"
-import { findVisibleCountryAnchor } from "@/lib/mapTooltipAnchor"
+import {
+  findCountryNearTapPoint,
+  findVisibleCountryAnchor,
+  getIso3AtPoint,
+  TOUCH_TAP_TOLERANCE,
+} from "@/lib/mapTooltipAnchor"
 import type { Topology } from "topojson-specification"
 import { MapControls } from "./MapControls"
 import geoDataJson from "world-atlas/countries-110m.json"
@@ -37,6 +42,20 @@ interface TooltipState {
   anchor:
     | { type: "pointer"; clientX: number; clientY: number }
     | { type: "country"; iso3: string }
+}
+
+interface TouchGestureState {
+  startX: number
+  startY: number
+  startIso3: string | null
+  tapEligible: boolean
+  multiTouch: boolean
+}
+
+function getIso3FromEventTarget(target: EventTarget | null) {
+  return target instanceof Element
+    ? target.closest("[data-iso3]")?.getAttribute("data-iso3") ?? null
+    : null
 }
 
 interface RankingMapProps {
@@ -69,6 +88,7 @@ const RankingMapInner = memo(function RankingMapInner({
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
   const wasDrag = useRef(false)
   const activePointers = useRef(new Set<number>())
+  const touchGesture = useRef<TouchGestureState | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const tooltipRef = useRef<HTMLDivElement>(null)
@@ -109,6 +129,20 @@ const RankingMapInner = memo(function RankingMapInner({
       }
     },
     [countries, maxScore, passportMap]
+  )
+
+  const showNativeTooltip = useCallback(
+    (iso3: string, clientX: number, clientY: number) => {
+      setNativeTooltip({
+        ...createTooltipContent(iso3),
+        anchor: {
+          type: "pointer",
+          clientX,
+          clientY,
+        },
+      })
+    },
+    [createTooltipContent]
   )
 
   const tooltip = useMemo(
@@ -168,6 +202,10 @@ const RankingMapInner = memo(function RankingMapInner({
     }
   }, [])
 
+  const resetTouchGesture = useCallback(() => {
+    touchGesture.current = null
+  }, [])
+
   useEffect(() => {
     const svg = containerRef.current?.querySelector("svg")
     if (svg) svg.setAttribute("preserveAspectRatio", "xMidYMid slice")
@@ -225,6 +263,11 @@ const RankingMapInner = memo(function RankingMapInner({
     let lastPinchDist = 0
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
+        setNativeTooltip(null)
+        if (touchGesture.current) {
+          touchGesture.current.tapEligible = false
+          touchGesture.current.multiTouch = true
+        }
         const dx = e.touches[0].clientX - e.touches[1].clientX
         const dy = e.touches[0].clientY - e.touches[1].clientY
         lastPinchDist = Math.hypot(dx, dy)
@@ -233,6 +276,11 @@ const RankingMapInner = memo(function RankingMapInner({
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault()
+        setNativeTooltip(null)
+        if (touchGesture.current) {
+          touchGesture.current.tapEligible = false
+          touchGesture.current.multiTouch = true
+        }
         const dx = e.touches[0].clientX - e.touches[1].clientX
         const dy = e.touches[0].clientY - e.touches[1].clientY
         const dist = Math.hypot(dx, dy)
@@ -264,14 +312,36 @@ const RankingMapInner = memo(function RankingMapInner({
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     activePointers.current.add(e.pointerId)
     ;(e.target as Element).setPointerCapture(e.pointerId)
+
+    if (e.pointerType === "touch") {
+      setNativeTooltip(null)
+    }
+
     if (activePointers.current.size === 1) {
       setDragging(true)
       wasDrag.current = false
       dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
-    } else {
-      setDragging(false)
-      wasDrag.current = true
-      setNativeTooltip(null)
+
+      if (e.pointerType === "touch") {
+        touchGesture.current = {
+          startX: e.clientX,
+          startY: e.clientY,
+          startIso3: getIso3FromEventTarget(e.target),
+          tapEligible: true,
+          multiTouch: false,
+        }
+      }
+
+      return
+    }
+
+    setDragging(false)
+    wasDrag.current = true
+    setNativeTooltip(null)
+
+    if (e.pointerType === "touch" && touchGesture.current) {
+      touchGesture.current.tapEligible = false
+      touchGesture.current.multiTouch = true
     }
   }, [pan])
 
@@ -279,10 +349,23 @@ const RankingMapInner = memo(function RankingMapInner({
     if (!dragging || activePointers.current.size !== 1) return
     const dx = e.clientX - dragStart.current.x
     const dy = e.clientY - dragStart.current.y
-    if (!wasDrag.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+    const exceededDragThreshold =
+      e.pointerType === "touch"
+        ? Math.hypot(dx, dy) > TOUCH_TAP_TOLERANCE
+        : Math.abs(dx) > 5 || Math.abs(dy) > 5
+
+    if (!wasDrag.current && exceededDragThreshold) {
       wasDrag.current = true
+      if (e.pointerType === "touch" && touchGesture.current) {
+        touchGesture.current.tapEligible = false
+      }
       setNativeTooltip(null)
     }
+
+    if (e.pointerType === "touch" && !wasDrag.current) {
+      return
+    }
+
     const rawX = dragStart.current.panX + dx / zoom
     const rawY = dragStart.current.panY + dy / zoom
     setPan(clampPan(rawX, rawY, zoom))
@@ -290,27 +373,63 @@ const RankingMapInner = memo(function RankingMapInner({
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     activePointers.current.delete(e.pointerId)
-    if (activePointers.current.size === 0) {
-      setDragging(false)
-      if (!wasDrag.current && !externallyHoveredIso3) {
-        const el = document.elementFromPoint(e.clientX, e.clientY)
-        const path = el?.closest("[data-iso3]")
-        const iso3 = path?.getAttribute("data-iso3")
-        if (iso3) {
-          setNativeTooltip({
-            ...createTooltipContent(iso3),
-            anchor: {
-              type: "pointer",
-              clientX: e.clientX,
-              clientY: e.clientY,
-            },
-          })
-        } else {
-          setNativeTooltip(null)
-        }
+    if (activePointers.current.size !== 0) {
+      return
+    }
+
+    setDragging(false)
+
+    if (e.pointerType === "touch") {
+      const gesture = touchGesture.current
+      resetTouchGesture()
+
+      if (externallyHoveredIso3 || !gesture || !gesture.tapEligible || gesture.multiTouch) {
+        return
+      }
+
+      const iso3 =
+        gesture.startIso3 ??
+        getIso3AtPoint(e.clientX, e.clientY) ??
+        findCountryNearTapPoint(e.clientX, e.clientY, TOUCH_TAP_TOLERANCE)
+
+      if (iso3) {
+        showNativeTooltip(iso3, e.clientX, e.clientY)
+      } else {
+        setNativeTooltip(null)
+      }
+
+      return
+    }
+
+    if (!wasDrag.current && !externallyHoveredIso3) {
+      const iso3 = getIso3AtPoint(e.clientX, e.clientY)
+      if (iso3) {
+        showNativeTooltip(iso3, e.clientX, e.clientY)
+      } else {
+        setNativeTooltip(null)
       }
     }
-  }, [createTooltipContent, externallyHoveredIso3])
+  }, [externallyHoveredIso3, resetTouchGesture, showNativeTooltip])
+
+  const handlePointerCancel = useCallback((e: React.PointerEvent) => {
+    activePointers.current.delete(e.pointerId)
+    setNativeTooltip(null)
+
+    if (e.pointerType === "touch" && touchGesture.current) {
+      touchGesture.current.tapEligible = false
+    }
+
+    if (activePointers.current.size === 0) {
+      setDragging(false)
+      resetTouchGesture()
+    }
+  }, [resetTouchGesture])
+
+  const handlePointerLeave = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === "mouse") {
+      setNativeTooltip(null)
+    }
+  }, [])
 
   const handleZoomIn = useCallback(() => {
     setZoom((z) => Math.min(MAX_ZOOM, z * 1.3))
@@ -329,11 +448,11 @@ const RankingMapInner = memo(function RankingMapInner({
       ref={containerRef}
       className="relative flex h-full w-full select-none items-center justify-center overflow-hidden"
       style={{ cursor: dragging ? "grabbing" : "grab", touchAction: "none" }}
-      onPointerLeave={() => { setNativeTooltip(null); setDragging(false); activePointers.current.clear() }}
+      onPointerLeave={handlePointerLeave}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerCancel={(e) => { activePointers.current.delete(e.pointerId); if (activePointers.current.size === 0) setDragging(false) }}
+      onPointerCancel={handlePointerCancel}
     >
       <ComposableMap
         projection="geoNaturalEarth1"
@@ -385,18 +504,7 @@ const RankingMapInner = memo(function RankingMapInner({
                   }}
                   onPointerEnter={(evt) => {
                     if (evt.pointerType !== "mouse" || externallyHoveredIso3) return
-                    setNativeTooltip({
-                      iso3,
-                      name: countries[iso3]?.name || passport?.name || geoName || "Unknown",
-                      rank: passport?.rank || 0,
-                      score: passport?.score || 0,
-                      color: fillColor,
-                      anchor: {
-                        type: "pointer",
-                        clientX: evt.clientX,
-                        clientY: evt.clientY,
-                      },
-                    })
+                    showNativeTooltip(iso3, evt.clientX, evt.clientY)
                   }}
                   onPointerLeave={(evt) => {
                     if (evt.pointerType === "mouse") setNativeTooltip(null)
